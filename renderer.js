@@ -229,15 +229,29 @@ statsBtn.addEventListener("click", (event) => {
   window.countdownApi?.openStats?.();
 });
 
+const NOTE_INPUT_MIN_HEIGHT = 26;
+const NOTE_INPUT_MAX_HEIGHT = 78;
+
 function syncNoteInputHeight() {
-  noteInput.style.height = "auto";
-  const next = Math.min(72, Math.max(26, noteInput.scrollHeight));
+  // Collapse first so scrollHeight reflects content, not the previous frame.
+  noteInput.style.height = "0px";
+  const styles = window.getComputedStyle(noteInput);
+  const borderY =
+    (parseFloat(styles.borderTopWidth) || 0) +
+    (parseFloat(styles.borderBottomWidth) || 0);
+  // border-box: scrollHeight excludes borders, so add them back or the last
+  // line sits flush against (or under) the bottom edge.
+  const next = Math.min(
+    NOTE_INPUT_MAX_HEIGHT,
+    Math.max(NOTE_INPUT_MIN_HEIGHT, noteInput.scrollHeight + borderY)
+  );
   noteInput.style.height = `${next}px`;
 
-  // Use layout size (offsetHeight), not getBoundingClientRect —
-  // last-3s CSS transform/scale would otherwise inflate the window.
-  const gutter = 16;
-  const totalHeight = Math.ceil(widgetEl.offsetHeight + gutter);
+  // Widget is height:auto now — measure the full document, not a 100%-stretched
+  // card that never grew with the textarea.
+  const totalHeight = Math.ceil(
+    Math.max(document.body.offsetHeight, widgetEl.offsetHeight + 16)
+  );
   window.countdownApi?.resizeHeight?.(totalHeight);
 }
 
@@ -296,4 +310,7 @@ window.addEventListener("beforeunload", () => {
 
 renderLoopCount(0);
 syncNoteInputHeight();
-requestAnimationFrame(update);
+requestAnimationFrame(() => {
+  syncNoteInputHeight();
+  requestAnimationFrame(update);
+});
