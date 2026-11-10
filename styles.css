@@ -216,25 +216,41 @@ body {
 
 .widget.danger {
   --accent: var(--danger);
-  animation: pulse 0.55s ease-in-out infinite;
-  border-color: rgba(255, 77, 109, 0.45);
+  border-color: rgba(255, 77, 109, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 77, 109, 0.25);
 }
 
 .widget.danger .flash {
   animation: flashPulse 0.55s ease-in-out infinite;
 }
 
-.widget.danger .time {
-  color: #ffe3e9;
+.widget.danger .ring {
+  animation: ringPulse 0.55s ease-in-out infinite;
 }
 
-@keyframes pulse {
+.widget.danger .time {
+  color: #ffe3e9;
+  animation: timePulse 0.55s ease-in-out infinite;
+}
+
+/* Pulse only inner visuals — never scale the whole widget (that grows the window). */
+@keyframes ringPulse {
   0%,
   100% {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.02);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes timePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
   }
 }
 

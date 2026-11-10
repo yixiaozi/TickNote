@@ -6,9 +6,14 @@ const {
   nativeImage,
   screen,
   ipcMain,
+  dialog,
+  shell,
 } = require("electron");
 const fs = require("fs");
 const path = require("path");
+
+const ABOUT_GITHUB = "https://github.com/yixiaozi";
+const ABOUT_WEBSITE = "https://wangyang.wiki/";
 
 const WINDOW_WIDTH = 280;
 const WINDOW_HEIGHT_BASE = 132;
@@ -16,9 +21,6 @@ const STATS_WIDTH = 520;
 const STATS_HEIGHT = 640;
 const STATS_MINI_WIDTH = 360;
 const STATS_MINI_HEIGHT = 260;
-const SETTINGS_PATH = () => path.join(app.getPath("userData"), "settings.json");
-const SESSIONS_PATH = () => path.join(app.getPath("userData"), "sessions.json");
-const DRAFT_PATH = () => path.join(app.getPath("userData"), "draft.json");
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
@@ -27,6 +29,147 @@ let statsWindow = null;
 /** @type {Tray | null} */
 let tray = null;
 let tickSoundEnabled = true;
+/** @type {string} */
+let dataDir = "";
+
+function pointerPath() {
+  return path.join(app.getPath("userData"), "datapath.json");
+}
+
+function getDataDir() {
+  return dataDir || app.getPath("userData");
+}
+
+function SETTINGS_PATH() {
+  return path.join(getDataDir(), "settings.json");
+}
+
+function SESSIONS_PATH() {
+  return path.join(getDataDir(), "sessions.json");
+}
+
+function DRAFT_PATH() {
+  return path.join(getDataDir(), "draft.json");
+}
+
+function loadDataPathConfig() {
+  const cfg = readJson(pointerPath(), {});
+  if (cfg && typeof cfg.dataDir === "string" && cfg.dataDir.trim()) {
+    dataDir = path.resolve(cfg.dataDir.trim());
+    return Boolean(cfg.configured);
+  }
+  dataDir = app.getPath("userData");
+  return false;
+}
+
+function saveDataPathConfig(dir, configured = true) {
+  dataDir = path.resolve(dir);
+  writeJson(pointerPath(), {
+    dataDir,
+    configured: Boolean(configured),
+  });
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch {
+    // ignore
+  }
+}
+
+function copyDataFile(fromPath, toPath) {
+  if (!fs.existsSync(fromPath) || fromPath === toPath) return;
+  fs.mkdirSync(path.dirname(toPath), { recursive: true });
+  if (!fs.existsSync(toPath)) {
+    fs.copyFileSync(fromPath, toPath);
+  }
+}
+
+function migrateDataDir(fromDir, toDir) {
+  if (!fromDir || !toDir || fromDir === toDir) return;
+  fs.mkdirSync(toDir, { recursive: true });
+  for (const name of ["sessions.json", "settings.json", "draft.json"]) {
+    copyDataFile(path.join(fromDir, name), path.join(toDir, name));
+  }
+}
+
+async function ensureDataDirectoryConfigured() {
+  const alreadyConfigured = loadDataPathConfig();
+  if (alreadyConfigured && fs.existsSync(getDataDir())) {
+    try {
+      fs.mkdirSync(getDataDir(), { recursive: true });
+    } catch {
+      // ignore
+    }
+    return;
+  }
+
+  const legacyDir = app.getPath("userData");
+  const defaultDir = path.join(app.getPath("documents"), "TickNote");
+  const result = await dialog.showMessageBox({
+    type: "question",
+    title: "选择数据存放位置",
+    message: "首次使用 TickNote，请选择数据存放位置",
+    detail:
+      "统计记录、设置和草稿都会保存在这个文件夹。\n之后也可在托盘菜单中更改。",
+    buttons: ["选择文件夹", "使用默认位置", "取消"],
+    defaultId: 0,
+    cancelId: 2,
+  });
+
+  let target = defaultDir;
+  if (result.response === 0) {
+    const picked = await dialog.showOpenDialog({
+      title: "选择 TickNote 数据文件夹",
+      defaultPath: defaultDir,
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (!picked.canceled && picked.filePaths[0]) {
+      target = picked.filePaths[0];
+    }
+  }
+
+  saveDataPathConfig(target, true);
+  migrateDataDir(legacyDir, target);
+}
+
+async function changeDataDirectory() {
+  const current = getDataDir();
+  const picked = await dialog.showOpenDialog({
+    title: "选择新的数据存放位置",
+    defaultPath: current,
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (picked.canceled || !picked.filePaths[0]) return;
+
+  const next = path.resolve(picked.filePaths[0]);
+  if (next === current) return;
+
+  const migrate = await dialog.showMessageBox({
+    type: "question",
+    title: "迁移数据",
+    message: "是否把现有数据复制到新位置？",
+    detail: `当前：${current}\n新位置：${next}`,
+    buttons: ["复制并切换", "仅切换（不复制）", "取消"],
+    defaultId: 0,
+    cancelId: 2,
+  });
+  if (migrate.response === 2) return;
+
+  if (migrate.response === 0) {
+    migrateDataDir(current, next);
+  }
+
+  saveDataPathConfig(next, true);
+  loadSettings();
+  broadcastSessions(loadSessions());
+  refreshTrayMenu();
+  dialog.showMessageBox({
+    type: "info",
+    title: "已更新",
+    message: "数据目录已更改",
+    detail: next,
+    buttons: ["好的"],
+  });
+}
 const statsPrefs = {
   alwaysOnTop: false,
   locked: false,
@@ -343,6 +486,37 @@ function openStatsWindow() {
   });
 }
 
+async function showAboutDialog() {
+  const parent =
+    mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
+      ? mainWindow
+      : undefined;
+
+  const { response } = await dialog.showMessageBox(parent, {
+    type: "info",
+    title: "关于 TickNote",
+    message: "TickNote（滴答记）",
+    detail: [
+      `版本 ${app.getVersion()}`,
+      "",
+      "一分钟循环倒计时，记录你每段时间在做什么。",
+      "",
+      `GitHub：${ABOUT_GITHUB}`,
+      `网站：${ABOUT_WEBSITE}`,
+    ].join("\n"),
+    buttons: ["打开 GitHub", "打开网站", "关闭"],
+    defaultId: 2,
+    cancelId: 2,
+    noLink: false,
+  });
+
+  if (response === 0) {
+    await shell.openExternal(ABOUT_GITHUB);
+  } else if (response === 1) {
+    await shell.openExternal(ABOUT_WEBSITE);
+  }
+}
+
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
     {
@@ -381,6 +555,29 @@ function buildTrayMenu() {
       },
     },
     { type: "separator" },
+    {
+      label: `数据位置: ${getDataDir()}`,
+      enabled: false,
+    },
+    {
+      label: "更改数据存放位置…",
+      click: () => {
+        changeDataDirectory().catch(() => {});
+      },
+    },
+    {
+      label: "打开数据文件夹",
+      click: () => {
+        shell.openPath(getDataDir());
+      },
+    },
+    { type: "separator" },
+    {
+      label: "关于 TickNote",
+      click: () => {
+        showAboutDialog();
+      },
+    },
     {
       label: "退出",
       click: () => {
@@ -616,7 +813,8 @@ if (!gotLock) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    await ensureDataDirectoryConfigured();
     loadSettings();
     consumeDraftOnStartup();
 

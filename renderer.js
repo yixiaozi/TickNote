@@ -234,9 +234,10 @@ function syncNoteInputHeight() {
   const next = Math.min(72, Math.max(26, noteInput.scrollHeight));
   noteInput.style.height = `${next}px`;
 
-  const rect = widgetEl.getBoundingClientRect();
-  // Include transparent gutter around the card.
-  const totalHeight = Math.ceil(rect.height + 16);
+  // Use layout size (offsetHeight), not getBoundingClientRect —
+  // last-3s CSS transform/scale would otherwise inflate the window.
+  const gutter = 16;
+  const totalHeight = Math.ceil(widgetEl.offsetHeight + gutter);
   window.countdownApi?.resizeHeight?.(totalHeight);
 }
 
