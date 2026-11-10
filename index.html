@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; media-src 'self' blob:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TickNote</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="widget" class="widget" aria-live="polite">
+      <div class="main-row">
+        <div class="ring" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <circle class="ring-track" cx="50" cy="50" r="42" />
+            <circle id="ringProgress" class="ring-progress" cx="50" cy="50" r="42" />
+          </svg>
+        </div>
+        <div class="time-block" title="拖动移动位置">
+          <div class="time-row">
+            <div id="time" class="time">1:00</div>
+            <button
+              id="resetBtn"
+              class="loop-btn"
+              type="button"
+              title="重置并记入统计"
+            >
+              第 <span id="loopCount">0</span> 轮
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-row">
+        <textarea
+          id="noteInput"
+          class="note-input"
+          rows="1"
+          maxlength="120"
+          placeholder="正在做什么…（时间标记）"
+          spellcheck="false"
+          title="填写标记后按回车：结束本轮并记入统计，开启新一轮"
+        ></textarea>
+        <button
+          id="statsBtn"
+          class="icon-btn"
+          type="button"
+          title="查看统计"
+          aria-label="查看统计"
+        >
+          统
+        </button>
+      </div>
+      <div id="flash" class="flash" aria-hidden="true"></div>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

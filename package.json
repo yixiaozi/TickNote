@@ -1,0 +1,91 @@
+{
+  "name": "ticknote",
+  "version": "1.0.0",
+  "description": "1-minute looping desktop countdown with time notes and stats",
+  "main": "main.js",
+  "scripts": {
+    "start": "node node_modules/electron/cli.js .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --publish never",
+    "release": "electron-builder --publish always"
+  },
+  "build": {
+    "appId": "com.ticknote.app",
+    "productName": "TickNote",
+    "copyright": "Copyright © TickNote",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-stats.js",
+      "index.html",
+      "styles.css",
+      "renderer.js",
+      "stats.html",
+      "stats.css",
+      "stats.js",
+      "assets/**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "artifactName": "${productName}-${version}-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "TickNote"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-macOS-${arch}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-Linux-${arch}.${ext}"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/placeholder/ticknote.git"
+  },
+  "author": "TickNote",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12"
+  }
+}
