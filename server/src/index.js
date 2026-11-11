@@ -5,6 +5,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { db } = require("./db");
+const { createMcpHandler, newMcpToken } = require("./mcp");
 
 const PORT = Number(process.env.PORT || 3015);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -45,13 +46,15 @@ function userPublicFields(row) {
     publicTitle: row.public_title || "",
     createdAt: row.created_at,
     publicUrl: `/${encodeURIComponent(row.username)}/public`,
+    hasMcpToken: Boolean(row.mcp_token),
+    mcpUrl: "/mcp",
   };
 }
 
 function getUserById(id) {
   return db
     .prepare(
-      `SELECT id, username, display_name, bio, is_public, public_title, created_at
+      `SELECT id, username, display_name, bio, is_public, public_title, created_at, mcp_token
        FROM users WHERE id = ?`
     )
     .get(id);
@@ -60,25 +63,64 @@ function getUserById(id) {
 function getUserByUsername(username) {
   return db
     .prepare(
-      `SELECT id, username, display_name, bio, is_public, public_title, created_at, password_hash
+      `SELECT id, username, display_name, bio, is_public, public_title, created_at, password_hash, mcp_token
        FROM users WHERE username = ? COLLATE NOCASE`
     )
     .get(username);
+}
+
+function getUserByMcpToken(token) {
+  if (!token) return null;
+  return db
+    .prepare(
+      `SELECT id, username, display_name, bio, is_public, public_title, created_at, mcp_token
+       FROM users WHERE mcp_token = ?`
+    )
+    .get(token);
+}
+
+function getUserFromAuthJwt(token) {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return getUserById(payload.sub);
+  } catch {
+    return null;
+  }
 }
 
 function authRequired(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return res.status(401).json({ error: "未登录" });
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    const user = getUserById(payload.sub);
-    if (!user) return res.status(401).json({ error: "用户不存在" });
-    req.user = user;
-    next();
-  } catch {
-    return res.status(401).json({ error: "登录已失效" });
-  }
+  const user = getUserFromAuthJwt(token) || getUserByMcpToken(token);
+  if (!user) return res.status(401).json({ error: "登录已失效" });
+  req.user = user;
+  next();
+}
+
+function applyUserSettings(userId, body = {}) {
+  const current = getUserById(userId);
+  const displayName = String(body.displayName ?? current.display_name ?? "")
+    .trim()
+    .slice(0, 40);
+  const bio = String(body.bio ?? current.bio ?? "").trim().slice(0, 280);
+  const publicTitle = String(body.publicTitle ?? current.public_title ?? "")
+    .trim()
+    .slice(0, 80);
+  const isPublic =
+    typeof body.isPublic === "boolean"
+      ? body.isPublic
+        ? 1
+        : 0
+      : current.is_public
+        ? 1
+        : 0;
+  db.prepare(
+    `UPDATE users
+     SET display_name = ?, bio = ?, public_title = ?, is_public = ?
+     WHERE id = ?`
+  ).run(displayName || current.username, bio, publicTitle, isPublic, userId);
+  return getUserById(userId);
 }
 
 function normalizeSession(raw, fallbackUpdatedAt) {
@@ -238,36 +280,67 @@ app.get("/api/settings", authRequired, (req, res) => {
 });
 
 app.put("/api/settings", authRequired, (req, res) => {
-  const displayName = String(req.body?.displayName ?? req.user.display_name ?? "")
-    .trim()
-    .slice(0, 40);
-  const bio = String(req.body?.bio ?? req.user.bio ?? "").trim().slice(0, 280);
-  const publicTitle = String(req.body?.publicTitle ?? req.user.public_title ?? "")
-    .trim()
-    .slice(0, 80);
-  const isPublic =
-    typeof req.body?.isPublic === "boolean"
-      ? req.body.isPublic
-        ? 1
-        : 0
-      : req.user.is_public
-        ? 1
-        : 0;
-
-  db.prepare(
-    `UPDATE users
-     SET display_name = ?, bio = ?, public_title = ?, is_public = ?
-     WHERE id = ?`
-  ).run(
-    displayName || req.user.username,
-    bio,
-    publicTitle,
-    isPublic,
-    req.user.id
-  );
-
-  const user = getUserById(req.user.id);
+  const user = applyUserSettings(req.user.id, req.body || {});
   res.json(userPublicFields(user));
+});
+
+app.post("/api/mcp/token", authRequired, (req, res) => {
+  const action = String(req.body?.action || "rotate");
+  if (action === "revoke") {
+    db.prepare("UPDATE users SET mcp_token = NULL WHERE id = ?").run(req.user.id);
+    return res.json({ ok: true, hasMcpToken: false });
+  }
+  const token = newMcpToken();
+  db.prepare("UPDATE users SET mcp_token = ? WHERE id = ?").run(token, req.user.id);
+  res.json({
+    ok: true,
+    hasMcpToken: true,
+    token,
+    mcpUrl: `${req.protocol}://${req.get("host")}/mcp`,
+  });
+});
+
+const mcp = createMcpHandler({
+  getUserFromAuth: getUserFromAuthJwt,
+  getUserByMcpToken,
+  listSessionsForUser,
+  buildSummary,
+  getUserByUsername,
+  userPublicFields,
+  issueMcpToken(userId) {
+    const token = newMcpToken();
+    db.prepare("UPDATE users SET mcp_token = ? WHERE id = ?").run(token, userId);
+    return token;
+  },
+  revokeMcpToken(userId) {
+    db.prepare("UPDATE users SET mcp_token = NULL WHERE id = ?").run(userId);
+  },
+  updateSettings: applyUserSettings,
+});
+
+app.post("/mcp", async (req, res) => {
+  try {
+    await mcp.handleJsonRpc(req, res, req.body);
+  } catch (err) {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: { code: -32603, message: "Internal error" },
+        id: null,
+      });
+    }
+  }
+});
+
+app.get("/mcp", (_req, res) => {
+  res.json({
+    name: "ticknote-timeline",
+    transport: "streamable-http-json",
+    endpoint: "/mcp",
+    auth: "Authorization: Bearer <jwt or mcp token>",
+    tools: mcp.tools.map((t) => t.name),
+  });
 });
 
 app.post("/api/sync/push", authRequired, (req, res) => {
@@ -372,7 +445,7 @@ app.get("/login", (_req, res) => sendPage(res, "login.html"));
 app.get("/:username/public", (req, res, next) => {
   const username = String(req.params.username || "");
   if (
-    ["api", "app", "settings", "login", "assets", "css", "js"].includes(
+    ["api", "app", "settings", "login", "mcp", "assets", "css", "js"].includes(
       username.toLowerCase()
     )
   ) {

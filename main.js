@@ -739,14 +739,70 @@ function getMiniBounds() {
   };
 }
 
+function pinMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  mainWindow.setSkipTaskbar(true);
+}
+
 function applyStatsWindowPrefs() {
   if (!statsWindow || statsWindow.isDestroyed()) return;
 
-  statsWindow.setAlwaysOnTop(Boolean(statsPrefs.alwaysOnTop), "floating");
+  // Use screen-saver level so pinned stats stays above ordinary apps on Windows.
+  statsWindow.setAlwaysOnTop(Boolean(statsPrefs.alwaysOnTop), "screen-saver");
   statsWindow.setOpacity(statsPrefs.opacity);
   statsWindow.setMovable(!statsPrefs.locked);
   statsWindow.setResizable(!statsPrefs.mini);
   statsWindow.webContents.send("stats:prefs", getStatsPrefsPayload());
+}
+
+/** Shared Cut/Copy/Paste menu for editable fields across all windows. */
+function attachEditContextMenu(win) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.on("context-menu", (event, params) => {
+    event.preventDefault();
+    if (win.isDestroyed()) return;
+    const editable = Boolean(params.isEditable);
+    const hasSelection = Boolean(params.selectionText);
+    if (!editable && !hasSelection) return;
+
+    const template = editable
+      ? [
+          { role: "undo", enabled: Boolean(params.editFlags?.canUndo) },
+          { role: "redo", enabled: Boolean(params.editFlags?.canRedo) },
+          { type: "separator" },
+          { role: "cut", enabled: Boolean(params.editFlags?.canCut) },
+          { role: "copy", enabled: Boolean(params.editFlags?.canCopy) },
+          { role: "paste", enabled: Boolean(params.editFlags?.canPaste) },
+          { role: "delete", enabled: Boolean(params.editFlags?.canDelete) },
+          { type: "separator" },
+          { role: "selectAll", enabled: Boolean(params.editFlags?.canSelectAll) },
+        ]
+      : [{ role: "copy", enabled: Boolean(params.editFlags?.canCopy) }];
+
+    Menu.buildFromTemplate(template).popup({ window: win });
+  });
+}
+
+function sessionsFingerprint(sessions) {
+  if (!Array.isArray(sessions)) return "";
+  return sessions
+    .map(
+      (s) =>
+        `${s.id}|${s.updatedAt || ""}|${s.note || ""}|${s.minutes || 0}|${s.deleted ? 1 : 0}`
+    )
+    .join(";");
+}
+
+let lastBroadcastFingerprint = "";
+
+function broadcastSessions(sessions, { force = false } = {}) {
+  if (!statsWindow || statsWindow.isDestroyed()) return;
+  const fp = sessionsFingerprint(sessions);
+  if (!force && fp === lastBroadcastFingerprint) return;
+  lastBroadcastFingerprint = fp;
+  statsWindow.webContents.send("stats:data", sessions);
 }
 
 function rememberStatsBounds() {
@@ -842,12 +898,6 @@ function clearDraft() {
   }
 }
 
-function broadcastSessions(sessions) {
-  if (statsWindow && !statsWindow.isDestroyed()) {
-    statsWindow.webContents.send("stats:data", sessions);
-  }
-}
-
 function sendToRenderer(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload);
@@ -928,6 +978,8 @@ function openSettingsWindow() {
 
   settingsWindow.setMenuBarVisibility(false);
   settingsWindow.setSkipTaskbar(true);
+  settingsWindow.setAlwaysOnTop(true, "floating");
+  attachEditContextMenu(settingsWindow);
   settingsWindow.loadFile("settings.html");
   settingsWindow.once("ready-to-show", () => {
     settingsWindow?.center();
@@ -998,12 +1050,11 @@ function openStatsWindow() {
 
   statsWindow.setMenuBarVisibility(false);
   statsWindow.setSkipTaskbar(true);
-  statsWindow.webContents.on("context-menu", (event) => {
-    event.preventDefault();
-  });
+  attachEditContextMenu(statsWindow);
   statsWindow.loadFile("stats.html");
 
   statsWindow.webContents.on("did-finish-load", () => {
+    lastBroadcastFingerprint = "";
     statsWindow?.webContents.send("stats:data", loadSessions());
     applyStatsWindowPrefs();
   });
@@ -1011,6 +1062,16 @@ function openStatsWindow() {
   statsWindow.once("ready-to-show", () => {
     applyStatsWindowPrefs();
     statsWindow?.show();
+  });
+
+  statsWindow.on("blur", () => {
+    if (!statsPrefs.alwaysOnTop) return;
+    setTimeout(applyStatsWindowPrefs, 0);
+    setTimeout(applyStatsWindowPrefs, 80);
+    setTimeout(applyStatsWindowPrefs, 250);
+  });
+  statsWindow.on("focus", () => {
+    if (statsPrefs.alwaysOnTop) applyStatsWindowPrefs();
   });
 
   statsWindow.on("moved", () => {
@@ -1057,6 +1118,8 @@ function showAboutDialog() {
 
   aboutWindow.setMenuBarVisibility(false);
   aboutWindow.setSkipTaskbar(true);
+  aboutWindow.setAlwaysOnTop(true, "floating");
+  attachEditContextMenu(aboutWindow);
   aboutWindow.loadFile("about.html");
   aboutWindow.once("ready-to-show", () => {
     aboutWindow?.center();
@@ -1191,24 +1254,29 @@ function createWindow() {
   });
 
   mainWindow.setBackgroundColor("#00000000");
-  mainWindow.setAlwaysOnTop(true, "screen-saver");
-  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  mainWindow.setSkipTaskbar(true);
+  pinMainWindow();
   mainWindow.setClosable(false);
 
   mainWindow.loadFile("index.html");
-
-  mainWindow.webContents.on("context-menu", (event) => {
-    event.preventDefault();
-  });
+  attachEditContextMenu(mainWindow);
 
   mainWindow.webContents.on("did-finish-load", () => {
     sendToRenderer("countdown:tick-sound", tickSoundEnabled);
   });
 
   mainWindow.once("ready-to-show", () => {
+    pinMainWindow();
     mainWindow?.show();
   });
+
+  // Windows may briefly drop always-on-top when the note input blurs.
+  mainWindow.on("blur", () => {
+    setTimeout(pinMainWindow, 0);
+    setTimeout(pinMainWindow, 80);
+    setTimeout(pinMainWindow, 250);
+  });
+  mainWindow.on("focus", () => pinMainWindow());
+  mainWindow.on("show", () => pinMainWindow());
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -1328,7 +1396,7 @@ ipcMain.handle("sessions:add", (_event, session) => {
   sessions.unshift(normalizeSession(session));
   saveSessions(sessions);
   clearDraft();
-  broadcastSessions(sessions);
+  broadcastSessions(sessions, { force: true });
   syncNow({ quiet: true }).catch(() => {});
   return sessions;
 });
@@ -1358,7 +1426,9 @@ ipcMain.handle("sessions:update", (_event, payload) => {
   );
 
   saveSessions(sessions);
-  broadcastSessions(sessions);
+  // Skip immediate broadcast: caller already has return value; avoids list flash
+  // while focus leaves the note. Sync will broadcast only if merge changes data.
+  lastBroadcastFingerprint = sessionsFingerprint(sessions);
   // Push first so remote gets the edit before any pull/merge.
   pushLocalSessions()
     .then(() => syncNow({ quiet: true }))

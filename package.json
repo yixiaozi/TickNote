@@ -1,6 +1,6 @@
 {
   "name": "ticknote",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "1-minute looping desktop countdown with time notes and stats",
   "main": "main.js",
   "scripts": {

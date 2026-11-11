@@ -441,7 +441,27 @@ function setSessions(sessions) {
     selectedDate = dates[dates.length - 1];
   }
 
+  const active = document.activeElement;
+  const editingNote =
+    active instanceof HTMLElement && active.classList.contains("record-note")
+      ? active
+      : null;
+  const editingId = editingNote?.dataset.id || "";
+  const editingHtml = editingNote ? editingNote.innerHTML : "";
+  const listTop = recordListEl?.scrollTop || 0;
+
   render();
+
+  if (recordListEl) recordListEl.scrollTop = listTop;
+  if (editingId) {
+    const restored = recordListEl?.querySelector(
+      `.record-note[data-id="${editingId.replace(/"/g, "")}"]`
+    );
+    if (restored instanceof HTMLElement) {
+      restored.innerHTML = editingHtml;
+      restored.focus();
+    }
+  }
 }
 
 async function saveNote(sessionId, note) {
@@ -535,10 +555,17 @@ recordListEl.addEventListener("keydown", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   if (!target.classList.contains("record-note")) return;
-  if (event.key === "Enter" && !event.shiftKey) {
+  if (event.key !== "Enter") return;
+
+  // Ctrl/Cmd+Enter or Shift+Enter → newline (same as main window)
+  if (event.ctrlKey || event.metaKey || event.shiftKey) {
     event.preventDefault();
-    target.blur();
+    document.execCommand("insertLineBreak");
+    return;
   }
+
+  event.preventDefault();
+  target.blur();
 });
 
 dateLabel.addEventListener("click", (event) => {
@@ -664,10 +691,6 @@ document.addEventListener("click", (event) => {
   if (!(target instanceof Node)) return;
   if (calendarPop.contains(target) || dateLabel.contains(target)) return;
   setCalendarOpen(false);
-});
-
-document.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
 });
 
 // Refresh today progress while stats stay open.

@@ -79,6 +79,20 @@
           <a id="publicUrl" href="#" target="_blank" rel="noopener"></a>
         </p>
 
+        <h2 style="margin-top: 8px">MCP 接入</h2>
+        <p class="hint">
+          供 Cursor 等 AI 客户端读取你的时间线。端点：
+          <code id="mcpEndpoint"></code>
+        </p>
+        <p class="hint" id="mcpStatus">尚未生成长期令牌</p>
+        <pre id="mcpConfig" class="hint" style="white-space: pre-wrap; word-break: break-all; background: #10161f; padding: 12px; border-radius: 10px; border: 1px solid var(--line);"></pre>
+        <div class="form-actions">
+          <button id="rotateMcpBtn" type="button" class="soft">生成 / 轮换令牌</button>
+          <button id="revokeMcpBtn" type="button" class="ghost">作废令牌</button>
+          <button id="copyMcpBtn" type="button" class="ghost">复制配置</button>
+        </div>
+        <p id="mcpTokenOnce" class="ok hidden"></p>
+
         <p id="saveError" class="error hidden"></p>
         <p id="saveOk" class="ok hidden">已保存</p>
         <div class="form-actions">

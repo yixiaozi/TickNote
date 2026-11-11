@@ -352,6 +352,14 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener(
   "contextmenu",
   (event) => {
+    // Let Electron show cut/copy/paste on editable fields; block elsewhere.
+    const t = event.target;
+    if (
+      t instanceof HTMLElement &&
+      (t.closest("textarea") || t.closest("input") || t.isContentEditable)
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
   },

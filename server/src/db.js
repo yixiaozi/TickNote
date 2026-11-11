@@ -51,5 +51,6 @@ ensureColumn("users", "display_name", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("users", "bio", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("users", "is_public", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "public_title", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("users", "mcp_token", "TEXT");
 
 module.exports = { db, DB_PATH, DATA_DIR };
