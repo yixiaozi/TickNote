@@ -8,6 +8,7 @@ const loopCountEl = document.getElementById("loopCount");
 const resetBtn = document.getElementById("resetBtn");
 const noteInput = document.getElementById("noteInput");
 const statsBtn = document.getElementById("statsBtn");
+const tickBtn = document.getElementById("tickBtn");
 
 ringEl.style.strokeDasharray = String(CIRCUMFERENCE);
 
@@ -222,6 +223,13 @@ resetBtn.addEventListener("click", (event) => {
   resetCountdown();
 });
 
+resetBtn.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    resetCountdown();
+  }
+});
+
 statsBtn.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -230,7 +238,7 @@ statsBtn.addEventListener("click", (event) => {
 });
 
 const NOTE_INPUT_MIN_HEIGHT = 26;
-const NOTE_INPUT_MAX_HEIGHT = 78;
+const NOTE_INPUT_MAX_HEIGHT = 146;
 
 function syncNoteInputHeight() {
   // Collapse first so scrollHeight reflects content, not the previous frame.
@@ -255,11 +263,40 @@ function syncNoteInputHeight() {
   window.countdownApi?.resizeHeight?.(totalHeight);
 }
 
+function renderTickButton() {
+  if (!tickBtn) return;
+  tickBtn.classList.toggle("on", tickSoundEnabled);
+  tickBtn.title = tickSoundEnabled ? "滴答声：开" : "滴答声：关";
+}
+
 noteInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
+  if (event.key !== "Enter") return;
+  if (event.ctrlKey || event.metaKey || event.shiftKey) {
     event.preventDefault();
-    resetCountdown();
+    const start = noteInput.selectionStart ?? noteInput.value.length;
+    const end = noteInput.selectionEnd ?? start;
+    const value = noteInput.value;
+    noteInput.value = `${value.slice(0, start)}\n${value.slice(end)}`;
+    noteInput.selectionStart = noteInput.selectionEnd = start + 1;
+    syncNoteInputHeight();
+    persistDraft(true);
+    return;
   }
+  event.preventDefault();
+  resetCountdown();
+});
+
+tickBtn?.addEventListener("click", async (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const next = !tickSoundEnabled;
+  if (window.countdownApi?.setTickSoundEnabled) {
+    tickSoundEnabled = await window.countdownApi.setTickSoundEnabled(next);
+  } else {
+    tickSoundEnabled = next;
+  }
+  renderTickButton();
+  if (tickSoundEnabled) ensureAudio();
 });
 
 noteInput.addEventListener("input", () => {
@@ -286,14 +323,18 @@ if (window.countdownApi?.onFlushDraft) {
 if (window.countdownApi?.onTickSoundChange) {
   window.countdownApi.onTickSoundChange((enabled) => {
     tickSoundEnabled = enabled;
-    ensureAudio();
+    renderTickButton();
+    if (enabled) ensureAudio();
   });
 }
 
 if (window.countdownApi?.getTickSoundEnabled) {
   window.countdownApi.getTickSoundEnabled().then((enabled) => {
     tickSoundEnabled = Boolean(enabled);
+    renderTickButton();
   });
+} else {
+  renderTickButton();
 }
 
 document.addEventListener(
@@ -307,6 +348,15 @@ document.addEventListener(
 window.addEventListener("beforeunload", () => {
   persistDraft(true);
 });
+
+document.addEventListener(
+  "contextmenu",
+  (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  },
+  true
+);
 
 renderLoopCount(0);
 syncNoteInputHeight();

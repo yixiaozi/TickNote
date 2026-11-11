@@ -12,6 +12,35 @@
   </head>
   <body>
     <div id="widget" class="widget" aria-live="polite">
+      <div class="top-actions">
+        <button
+          id="tickBtn"
+          class="icon-btn tick-btn on"
+          type="button"
+          title="滴答声：开"
+          aria-label="切换滴答声"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2C12 2 6 9.2 6 13.2a6 6 0 0 0 12 0C18 9.2 12 2 12 2z"
+            />
+          </svg>
+        </button>
+        <button
+          id="statsBtn"
+          class="icon-btn chart-btn"
+          type="button"
+          title="查看统计"
+          aria-label="查看统计"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="11" width="3.2" height="9" rx="1" />
+            <rect x="10.4" y="6" width="3.2" height="14" rx="1" />
+            <rect x="16.8" y="3" width="3.2" height="17" rx="1" />
+          </svg>
+        </button>
+      </div>
+
       <div class="main-row">
         <div class="ring" aria-hidden="true">
           <svg viewBox="0 0 100 100">
@@ -22,14 +51,15 @@
         <div class="time-block" title="拖动移动位置">
           <div class="time-row">
             <div id="time" class="time">1:00</div>
-            <button
+            <span
               id="resetBtn"
-              class="loop-btn"
-              type="button"
+              class="loop-label"
+              role="button"
+              tabindex="0"
               title="重置并记入统计"
+              ><span class="loop-affix">第</span><span id="loopCount">0</span
+              ><span class="loop-affix">轮</span></span
             >
-              第 <span id="loopCount">0</span> 轮
-            </button>
           </div>
         </div>
       </div>
@@ -39,20 +69,11 @@
           id="noteInput"
           class="note-input"
           rows="1"
-          maxlength="120"
+          maxlength="2000"
           placeholder="正在做什么…（时间标记）"
           spellcheck="false"
-          title="填写标记后按回车：结束本轮并记入统计，开启新一轮"
+          title="回车结束本轮；Ctrl+Enter 换行"
         ></textarea>
-        <button
-          id="statsBtn"
-          class="icon-btn"
-          type="button"
-          title="查看统计"
-          aria-label="查看统计"
-        >
-          统
-        </button>
       </div>
       <div id="flash" class="flash" aria-hidden="true"></div>
     </div>

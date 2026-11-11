@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TickNote 设置</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <h1>设置</h1>
+      <button id="closeBtn" class="close-btn" type="button" title="关闭">×</button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" type="button" data-tab="sync" role="tab">同步</button>
+      <button class="tab" type="button" data-tab="local" role="tab">本机</button>
+    </nav>
+
+    <main class="content">
+      <section id="tab-sync" class="tab-panel active">
+        <div class="panel">
+          <h2>账号与同步站</h2>
+          <p id="accountStatus" class="muted">未登录</p>
+          <p id="lastSyncLabel" class="muted">上次同步：—</p>
+          <label>
+            同步网站地址
+            <input
+              id="syncApiBase"
+              spellcheck="false"
+              placeholder="https://timeline.wangyang.wiki"
+            />
+          </label>
+          <p class="hint">可改成其他人自行部署的 Timeline 地址，保存后生效。</p>
+          <div class="row">
+            <button id="loginBtn" type="button">登录</button>
+            <button id="registerBtn" type="button" class="ghost">注册</button>
+            <button id="logoutBtn" type="button" class="ghost">退出登录</button>
+            <button id="syncBtn" type="button">立即同步</button>
+          </div>
+          <p id="accountMsg" class="msg hidden"></p>
+        </div>
+      </section>
+
+      <section id="tab-local" class="tab-panel">
+        <div class="panel">
+          <h2>本机</h2>
+          <label>
+            机器名
+            <input id="machineName" spellcheck="false" />
+          </label>
+          <p class="hint">记录会标记为「机器名 · TickNote」。保存后会回写本机旧记录。</p>
+          <p id="dataDirLabel" class="muted">数据目录：—</p>
+          <div class="row">
+            <button id="changeDataDirBtn" type="button" class="ghost">更改数据目录…</button>
+            <button id="openDataDirBtn" type="button" class="ghost">打开数据文件夹</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <button id="saveBtn" type="button">保存设置</button>
+        <span id="saveMsg" class="msg hidden"></span>
+      </div>
+    </main>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

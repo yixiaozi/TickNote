@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <title>关于 TickNote</title>
+    <link rel="stylesheet" href="about.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <button id="closeBtn" class="close" type="button" title="关闭">×</button>
+      <div class="hero">
+        <div class="mark">TN</div>
+        <div>
+          <h1>TickNote</h1>
+          <p class="tag">滴答记 · 一分钟循环时间块</p>
+        </div>
+      </div>
+      <p class="desc">
+        用轻量倒计时把时间切成可回看的片段。记录你在做什么，同步到多台电脑，并在 Timeline 里回看更细的统计。
+      </p>
+      <div class="meta">
+        <div><span>版本</span><b id="version">—</b></div>
+        <div><span>同步站</span><b>timeline.wangyang.wiki</b></div>
+      </div>
+      <div class="actions">
+        <button id="githubBtn" type="button">GitHub</button>
+        <button id="siteBtn" type="button" class="ghost">个人网站</button>
+        <button id="timelineBtn" type="button" class="ghost">Timeline</button>
+      </div>
+    </div>
+    <script src="about.js"></script>
+  </body>
+</html>

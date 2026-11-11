@@ -19,14 +19,23 @@
     },
     "files": [
       "main.js",
+      "sync-account.js",
       "preload.js",
       "preload-stats.js",
+      "preload-settings.js",
       "index.html",
       "styles.css",
       "renderer.js",
       "stats.html",
       "stats.css",
       "stats.js",
+      "settings.html",
+      "settings.css",
+      "settings.js",
+      "about.html",
+      "about.css",
+      "about.js",
+      "preload-about.js",
       "assets/**/*"
     ],
     "publish": [

@@ -1,5 +1,9 @@
 node_modules/
 dist/
+dist-build/
+_deploy_timeline.py
+_ssh_check.py
 *.log
 .DS_Store
 Thumbs.db
+server/data/

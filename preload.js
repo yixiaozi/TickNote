@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("countdownApi", {
   getTickSoundEnabled() {
     return ipcRenderer.invoke("countdown:get-tick-sound");
   },
+  setTickSoundEnabled(enabled) {
+    return ipcRenderer.invoke("countdown:set-tick-sound", Boolean(enabled));
+  },
   onTickSoundChange(callback) {
     const listener = (_event, enabled) => callback(Boolean(enabled));
     ipcRenderer.on("countdown:tick-sound", listener);

@@ -10,10 +10,18 @@ const {
   shell,
 } = require("electron");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const {
+  DEFAULT_API_BASE,
+  createAccountClient,
+  mergeSessions,
+} = require("./sync-account");
 
 const ABOUT_GITHUB = "https://github.com/yixiaozi";
 const ABOUT_WEBSITE = "https://wangyang.wiki/";
+const TIMELINE_URL = "https://timeline.wangyang.wiki";
+const APP_DISPLAY_NAME = "TickNote";
 
 const WINDOW_WIDTH = 280;
 const WINDOW_HEIGHT_BASE = 132;
@@ -26,18 +34,60 @@ const STATS_MINI_HEIGHT = 260;
 let mainWindow = null;
 /** @type {BrowserWindow | null} */
 let statsWindow = null;
+/** @type {BrowserWindow | null} */
+let settingsWindow = null;
 /** @type {Tray | null} */
 let tray = null;
 let tickSoundEnabled = true;
 /** @type {string} */
 let dataDir = "";
+/** @type {string} */
+let machineName = "";
+/** @type {string} */
+let accountToken = "";
+/** @type {string} */
+let accountUsername = "";
+/** @type {string} */
+let syncApiBase = DEFAULT_API_BASE;
+/** @type {string | null} */
+let lastSyncAt = null;
+/** @type {string[]} */
+let dismissedGaps = [];
+/** @type {NodeJS.Timeout | null} */
+let syncTimer = null;
+/** @type {BrowserWindow | null} */
+let aboutWindow = null;
+
+const accountApi = createAccountClient(() => ({
+  apiBase: syncApiBase,
+  token: accountToken,
+}));
+
+function detectPortableRoot() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    return path.resolve(process.env.PORTABLE_EXECUTABLE_DIR);
+  }
+  try {
+    if (app.isPackaged) {
+      const exeDir = path.resolve(path.dirname(process.execPath));
+      if (fs.existsSync(path.join(exeDir, "portable.json"))) {
+        return exeDir;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+const PORTABLE_ROOT = detectPortableRoot();
 
 function pointerPath() {
   return path.join(app.getPath("userData"), "datapath.json");
 }
 
 function getDataDir() {
-  return dataDir || app.getPath("userData");
+  return dataDir || PORTABLE_ROOT || app.getPath("userData");
 }
 
 function SETTINGS_PATH() {
@@ -53,6 +103,10 @@ function DRAFT_PATH() {
 }
 
 function loadDataPathConfig() {
+  if (PORTABLE_ROOT) {
+    dataDir = PORTABLE_ROOT;
+    return true;
+  }
   const cfg = readJson(pointerPath(), {});
   if (cfg && typeof cfg.dataDir === "string" && cfg.dataDir.trim()) {
     dataDir = path.resolve(cfg.dataDir.trim());
@@ -68,6 +122,16 @@ function saveDataPathConfig(dir, configured = true) {
     dataDir,
     configured: Boolean(configured),
   });
+  if (PORTABLE_ROOT) {
+    try {
+      writeJson(path.join(PORTABLE_ROOT, "portable.json"), {
+        dataDir: ".",
+        configured: true,
+      });
+    } catch {
+      // ignore
+    }
+  }
   try {
     fs.mkdirSync(dataDir, { recursive: true });
   } catch {
@@ -92,6 +156,12 @@ function migrateDataDir(fromDir, toDir) {
 }
 
 async function ensureDataDirectoryConfigured() {
+  if (PORTABLE_ROOT) {
+    saveDataPathConfig(PORTABLE_ROOT, true);
+    migrateDataDir(app.getPath("userData"), PORTABLE_ROOT);
+    return;
+  }
+
   const alreadyConfigured = loadDataPathConfig();
   if (alreadyConfigured && fs.existsSync(getDataDir())) {
     try {
@@ -162,6 +232,7 @@ async function changeDataDirectory() {
   loadSettings();
   broadcastSessions(loadSessions());
   refreshTrayMenu();
+  broadcastSettings();
   dialog.showMessageBox({
     type: "info",
     title: "已更新",
@@ -175,10 +246,13 @@ const statsPrefs = {
   locked: false,
   opacity: 1,
   mini: false,
+  showDevice: false,
   x: null,
   y: null,
   width: STATS_WIDTH,
   height: STATS_HEIGHT,
+  miniX: null,
+  miniY: null,
   normalX: null,
   normalY: null,
   normalWidth: STATS_WIDTH,
@@ -198,10 +272,39 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
 }
 
+function defaultMachineName() {
+  return (os.hostname() || "本机").trim() || "本机";
+}
+
+function getDeviceLabel() {
+  const name = (machineName || defaultMachineName()).trim() || defaultMachineName();
+  return `${name} · ${APP_DISPLAY_NAME}`;
+}
+
 function loadSettings() {
   const data = readJson(SETTINGS_PATH(), {});
   if (typeof data.tickSoundEnabled === "boolean") {
     tickSoundEnabled = data.tickSoundEnabled;
+  }
+  if (typeof data.machineName === "string" && data.machineName.trim()) {
+    machineName = data.machineName.trim();
+  } else {
+    machineName = defaultMachineName();
+  }
+  if (typeof data.accountToken === "string") {
+    accountToken = data.accountToken;
+  }
+  if (typeof data.accountUsername === "string") {
+    accountUsername = data.accountUsername;
+  }
+  if (typeof data.syncApiBase === "string" && data.syncApiBase.trim()) {
+    syncApiBase = data.syncApiBase.trim();
+  }
+  if (typeof data.lastSyncAt === "string") {
+    lastSyncAt = data.lastSyncAt;
+  }
+  if (Array.isArray(data.dismissedGaps)) {
+    dismissedGaps = data.dismissedGaps.map(String).slice(0, 2000);
   }
   if (data.stats && typeof data.stats === "object") {
     if (typeof data.stats.alwaysOnTop === "boolean") {
@@ -215,6 +318,9 @@ function loadSettings() {
     }
     if (typeof data.stats.mini === "boolean") {
       statsPrefs.mini = data.stats.mini;
+    }
+    if (typeof data.stats.showDevice === "boolean") {
+      statsPrefs.showDevice = data.stats.showDevice;
     }
     if (typeof data.stats.x === "number") statsPrefs.x = data.stats.x;
     if (typeof data.stats.y === "number") statsPrefs.y = data.stats.y;
@@ -234,6 +340,8 @@ function loadSettings() {
     if (typeof data.stats.normalHeight === "number") {
       statsPrefs.normalHeight = data.stats.normalHeight;
     }
+    if (typeof data.stats.miniX === "number") statsPrefs.miniX = data.stats.miniX;
+    if (typeof data.stats.miniY === "number") statsPrefs.miniY = data.stats.miniY;
   }
 }
 
@@ -241,11 +349,373 @@ function saveSettings() {
   try {
     writeJson(SETTINGS_PATH(), {
       tickSoundEnabled,
+      machineName: machineName || defaultMachineName(),
+      accountToken,
+      accountUsername,
+      syncApiBase,
+      lastSyncAt,
+      dismissedGaps,
       stats: { ...statsPrefs },
     });
   } catch {
     // Ignore persistence failures.
   }
+}
+
+function createCenteredPromptWindow({ width, height, title }) {
+  const promptWindow = new BrowserWindow({
+    width,
+    height,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    frame: false,
+    transparent: false,
+    hasShadow: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    show: false,
+    center: true,
+    title,
+    backgroundColor: "#161a21",
+    webPreferences: {
+      contextIsolation: false,
+      nodeIntegration: true,
+      sandbox: false,
+    },
+  });
+  promptWindow.setMenuBarVisibility(false);
+  promptWindow.setSkipTaskbar(true);
+  promptWindow.once("ready-to-show", () => {
+    promptWindow.center();
+    promptWindow.show();
+    promptWindow.focus();
+  });
+  return promptWindow;
+}
+
+function promptText({ title, message, defaultValue }) {
+  return new Promise((resolve) => {
+    const promptWindow = createCenteredPromptWindow({
+      width: 400,
+      height: 210,
+      title,
+    });
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (!promptWindow.isDestroyed()) promptWindow.close();
+      resolve(value);
+    };
+
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8" />
+<style>
+  html,body{margin:0;height:100%;background:#161a21;color:#e8edf5;font:14px/1.4 "Segoe UI","Microsoft YaHei",sans-serif}
+  body{display:flex;flex-direction:column;padding:16px;box-sizing:border-box;gap:10px;-webkit-app-region:drag;border:1px solid #2a3342}
+  h1{margin:0;font-size:15px;font-weight:700}
+  p{margin:0;opacity:.86;font-size:13px;-webkit-app-region:no-drag}
+  input{width:100%;box-sizing:border-box;border:1px solid #2d3542;border-radius:8px;background:#0f1319;color:#e8edf5;padding:9px 10px;outline:none;-webkit-app-region:no-drag}
+  input:focus{border-color:#5b8def}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:auto;-webkit-app-region:no-drag}
+  button{border:0;border-radius:8px;padding:7px 14px;cursor:pointer;font:inherit}
+  .cancel{background:#2a313c;color:#d7dde8}
+  .ok{background:#3d6fd8;color:#fff}
+</style></head><body>
+  <h1>${title.replace(/[<>&]/g, "")}</h1>
+  <p id="msg"></p>
+  <input id="value" spellcheck="false" />
+  <div class="actions">
+    <button class="cancel" id="cancel" type="button">取消</button>
+    <button class="ok" id="ok" type="button">确定</button>
+  </div>
+  <script>
+    const { ipcRenderer } = require("electron");
+    const input = document.getElementById("value");
+    document.getElementById("msg").textContent = ${JSON.stringify(message)};
+    input.value = ${JSON.stringify(defaultValue || "")};
+    const submit = () => ipcRenderer.send("prompt:result", input.value);
+    const cancel = () => ipcRenderer.send("prompt:result", null);
+    document.getElementById("ok").onclick = submit;
+    document.getElementById("cancel").onclick = cancel;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+      if (e.key === "Escape") cancel();
+    });
+    input.focus();
+    input.select();
+  </script>
+</body></html>`;
+
+    const onResult = (_event, value) => {
+      if (_event.sender !== promptWindow.webContents) return;
+      ipcMain.removeListener("prompt:result", onResult);
+      finish(typeof value === "string" ? value : null);
+    };
+    ipcMain.on("prompt:result", onResult);
+    promptWindow.on("closed", () => {
+      ipcMain.removeListener("prompt:result", onResult);
+      finish(null);
+    });
+    promptWindow.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+    );
+  });
+}
+
+function rewriteSessionDevices(oldName, oldLabel, newLabel) {
+  const now = new Date().toISOString();
+  const sessions = loadSessions().map((session) => {
+    const current = String(session.device || "").trim();
+    const shouldRewrite =
+      !current ||
+      current === oldLabel ||
+      current === oldName ||
+      (oldName && current.startsWith(`${oldName} ·`)) ||
+      (oldLabel && current === oldLabel);
+    if (!shouldRewrite) return session;
+    return {
+      ...session,
+      device: newLabel,
+      updatedAt: now,
+    };
+  });
+  saveSessions(sessions);
+  broadcastSessions(sessions);
+  return sessions.length;
+}
+
+async function changeMachineName() {
+  const current = machineName || defaultMachineName();
+  const oldName = current;
+  const oldLabel = getDeviceLabel();
+  const next = await promptText({
+    title: "设置机器名",
+    message: "用于区分哪台电脑写下的记录（保存为「机器名 · TickNote」）",
+    defaultValue: current,
+  });
+  if (next === null) return;
+  const trimmed = String(next).trim();
+  if (!trimmed) return;
+  machineName = trimmed;
+  const newLabel = getDeviceLabel();
+  rewriteSessionDevices(oldName, oldLabel, newLabel);
+  // Also rewrite host-based leftovers from this PC.
+  rewriteSessionDevices(
+    defaultMachineName(),
+    `${defaultMachineName()} · ${APP_DISPLAY_NAME}`,
+    newLabel
+  );
+  saveSettings();
+  refreshTrayMenu();
+  broadcastSettings();
+  syncNow({ quiet: true }).catch(() => {});
+}
+
+function promptCredentials({ title, submitLabel }) {
+  return new Promise((resolve) => {
+    const promptWindow = createCenteredPromptWindow({
+      width: 400,
+      height: 240,
+      title,
+    });
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (!promptWindow.isDestroyed()) promptWindow.close();
+      resolve(value);
+    };
+
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8" />
+<style>
+  html,body{margin:0;height:100%;background:#161a21;color:#e8edf5;font:14px/1.4 "Segoe UI","Microsoft YaHei",sans-serif}
+  body{display:flex;flex-direction:column;padding:16px;box-sizing:border-box;gap:8px;-webkit-app-region:drag;border:1px solid #2a3342}
+  h1{margin:0 0 4px;font-size:15px;font-weight:700}
+  label{display:grid;gap:4px;font-size:12px;color:#9aa6b8;-webkit-app-region:no-drag}
+  input{width:100%;box-sizing:border-box;border:1px solid #2d3542;border-radius:8px;background:#0f1319;color:#e8edf5;padding:9px 10px;outline:none}
+  input:focus{border-color:#5b8def}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:auto;-webkit-app-region:no-drag}
+  button{border:0;border-radius:8px;padding:7px 14px;cursor:pointer;font:inherit}
+  .cancel{background:#2a313c;color:#d7dde8}
+  .ok{background:#3d6fd8;color:#fff}
+</style></head><body>
+  <h1>${title.replace(/[<>&]/g, "")}</h1>
+  <label>用户名<input id="username" spellcheck="false" /></label>
+  <label>密码<input id="password" type="password" /></label>
+  <div class="actions">
+    <button class="cancel" id="cancel" type="button">取消</button>
+    <button class="ok" id="ok" type="button">${submitLabel}</button>
+  </div>
+  <script>
+    const { ipcRenderer } = require("electron");
+    const username = document.getElementById("username");
+    const password = document.getElementById("password");
+    const submit = () => ipcRenderer.send("prompt:creds", {
+      username: username.value,
+      password: password.value
+    });
+    const cancel = () => ipcRenderer.send("prompt:creds", null);
+    document.getElementById("ok").onclick = submit;
+    document.getElementById("cancel").onclick = cancel;
+    password.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    username.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") password.focus();
+      if (e.key === "Escape") cancel();
+    });
+    username.focus();
+  </script>
+</body></html>`;
+
+    const onResult = (_event, value) => {
+      if (_event.sender !== promptWindow.webContents) return;
+      ipcMain.removeListener("prompt:creds", onResult);
+      finish(value && typeof value === "object" ? value : null);
+    };
+    ipcMain.on("prompt:creds", onResult);
+    promptWindow.on("closed", () => {
+      ipcMain.removeListener("prompt:creds", onResult);
+      finish(null);
+    });
+    promptWindow.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+    );
+  });
+}
+
+async function accountLoginOrRegister(mode) {
+  const creds = await promptCredentials({
+    title: mode === "register" ? "注册 TickNote 账号" : "登录 TickNote 账号",
+    submitLabel: mode === "register" ? "注册" : "登录",
+  });
+  if (!creds) return;
+  const username = String(creds.username || "").trim();
+  const password = String(creds.password || "");
+  if (!username || password.length < 6) {
+    dialog.showErrorBox("无法继续", "请填写用户名，密码至少 6 位");
+    return;
+  }
+  try {
+    const result =
+      mode === "register"
+        ? await accountApi.register(username, password)
+        : await accountApi.login(username, password);
+    accountToken = result.token;
+    accountUsername = result.user?.username || username;
+    saveSettings();
+    refreshTrayMenu();
+    broadcastSettings();
+    await syncNow({ quiet: true });
+  } catch (err) {
+    dialog.showErrorBox(
+      mode === "register" ? "注册失败" : "登录失败",
+      err.message || String(err)
+    );
+    throw err;
+  }
+}
+
+function logoutAccount() {
+  accountToken = "";
+  accountUsername = "";
+  lastSyncAt = null;
+  saveSettings();
+  refreshTrayMenu();
+  broadcastSettings();
+}
+
+function formatLastSyncLabel() {
+  if (!lastSyncAt) return "上次同步：尚未同步";
+  const d = new Date(lastSyncAt);
+  if (Number.isNaN(d.getTime())) return "上次同步：—";
+  const p = (n) => String(n).padStart(2, "0");
+  return `上次同步：${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function getSettingsPayload() {
+  return {
+    syncApiBase: syncApiBase || DEFAULT_API_BASE,
+    machineName: machineName || defaultMachineName(),
+    dataDir: getDataDir(),
+    accountUsername,
+    lastSyncAt,
+    lastSyncLabel: formatLastSyncLabel(),
+  };
+}
+
+function broadcastSettings() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send("settings:changed", getSettingsPayload());
+  }
+}
+
+async function pushLocalSessions() {
+  if (!accountToken) return;
+  const sessions = loadSessions().map((s) => ({
+    ...s,
+    updatedAt: s.updatedAt || s.endedAt || s.startedAt || new Date().toISOString(),
+  }));
+  await accountApi.push(sessions);
+}
+
+async function pullRemoteSessions() {
+  if (!accountToken) return;
+  const payload = await accountApi.pull();
+  const merged = mergeSessions(loadSessions(), payload.sessions || []);
+  saveSessions(merged);
+  broadcastSessions(merged);
+  lastSyncAt = payload.serverTime || new Date().toISOString();
+  saveSettings();
+}
+
+async function syncNow({ quiet = true } = {}) {
+  if (!accountToken) {
+    if (!quiet) {
+      dialog.showMessageBox({
+        type: "info",
+        title: "尚未登录",
+        message: "请先注册或登录后再同步",
+        buttons: ["好的"],
+      });
+    }
+    return;
+  }
+  try {
+    // Pull remote first so other devices' data is merged in, then push full set.
+    await pullRemoteSessions();
+    await pushLocalSessions();
+    lastSyncAt = new Date().toISOString();
+    saveSettings();
+    refreshTrayMenu();
+    broadcastSettings();
+    if (!quiet) {
+      dialog.showMessageBox({
+        type: "info",
+        title: "同步完成",
+        message: "已双向同步：拉取其他设备数据并上传本机记录",
+        detail: syncApiBase || TIMELINE_URL,
+        buttons: ["好的"],
+      });
+    }
+  } catch (err) {
+    if (!quiet) {
+      dialog.showErrorBox("同步失败", err.message || String(err));
+    }
+    throw err;
+  }
+}
+
+function startSyncTimer() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    syncNow({ quiet: true }).catch(() => {});
+  }, 5 * 60 * 1000);
 }
 
 function getStatsPrefsPayload() {
@@ -254,6 +724,7 @@ function getStatsPrefsPayload() {
     locked: statsPrefs.locked,
     opacity: statsPrefs.opacity,
     mini: statsPrefs.mini,
+    showDevice: statsPrefs.showDevice,
   };
 }
 
@@ -271,29 +742,31 @@ function getMiniBounds() {
 function applyStatsWindowPrefs() {
   if (!statsWindow || statsWindow.isDestroyed()) return;
 
-  statsWindow.setAlwaysOnTop(
-    Boolean(statsPrefs.alwaysOnTop || statsPrefs.mini),
-    "floating"
-  );
+  statsWindow.setAlwaysOnTop(Boolean(statsPrefs.alwaysOnTop), "floating");
   statsWindow.setOpacity(statsPrefs.opacity);
-  statsWindow.setMovable(!statsPrefs.locked && !statsPrefs.mini);
+  statsWindow.setMovable(!statsPrefs.locked);
   statsWindow.setResizable(!statsPrefs.mini);
   statsWindow.webContents.send("stats:prefs", getStatsPrefsPayload());
 }
 
 function rememberStatsBounds() {
   if (!statsWindow || statsWindow.isDestroyed()) return;
-  if (statsPrefs.mini) return;
+  if (statsPrefs.locked) return;
 
   const bounds = statsWindow.getBounds();
-  statsPrefs.x = bounds.x;
-  statsPrefs.y = bounds.y;
-  statsPrefs.width = bounds.width;
-  statsPrefs.height = bounds.height;
-  statsPrefs.normalX = bounds.x;
-  statsPrefs.normalY = bounds.y;
-  statsPrefs.normalWidth = bounds.width;
-  statsPrefs.normalHeight = bounds.height;
+  if (statsPrefs.mini) {
+    statsPrefs.miniX = bounds.x;
+    statsPrefs.miniY = bounds.y;
+  } else {
+    statsPrefs.x = bounds.x;
+    statsPrefs.y = bounds.y;
+    statsPrefs.width = bounds.width;
+    statsPrefs.height = bounds.height;
+    statsPrefs.normalX = bounds.x;
+    statsPrefs.normalY = bounds.y;
+    statsPrefs.normalWidth = bounds.width;
+    statsPrefs.normalHeight = bounds.height;
+  }
   saveSettings();
 }
 
@@ -306,7 +779,19 @@ function applyMiniLayout(enteringMini) {
     statsPrefs.normalY = current.y;
     statsPrefs.normalWidth = current.width;
     statsPrefs.normalHeight = current.height;
-    statsWindow.setBounds(getMiniBounds(), false);
+    const miniBounds = getMiniBounds();
+    const hasMiniPos =
+      typeof statsPrefs.miniX === "number" &&
+      typeof statsPrefs.miniY === "number";
+    statsWindow.setBounds(
+      {
+        width: miniBounds.width,
+        height: miniBounds.height,
+        x: hasMiniPos ? statsPrefs.miniX : miniBounds.x,
+        y: hasMiniPos ? statsPrefs.miniY : miniBounds.y,
+      },
+      false
+    );
   } else {
     const display = screen.getPrimaryDisplay();
     const { x: workX, y: workY, width, height } = display.workArea;
@@ -370,13 +855,20 @@ function sendToRenderer(channel, payload) {
 }
 
 function normalizeSession(session, existingId) {
+  const device =
+    typeof session.device === "string" && session.device.trim()
+      ? session.device.trim()
+      : getDeviceLabel();
+  const endedAt = session.endedAt || new Date().toISOString();
   return {
     id: existingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     note: String(session.note || "").trim() || "未命名",
     rounds: Math.max(0, Number(session.rounds) || 0),
     minutes: Math.max(0, Number(session.minutes) || 0),
+    device,
     startedAt: session.startedAt || null,
-    endedAt: session.endedAt || new Date().toISOString(),
+    endedAt,
+    updatedAt: session.updatedAt || endedAt,
   };
 }
 
@@ -404,6 +896,49 @@ function consumeDraftOnStartup() {
   );
   saveSessions(sessions);
   clearDraft();
+}
+
+function openSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    settingsWindow.webContents.send("settings:changed", getSettingsPayload());
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 460,
+    height: 560,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    skipTaskbar: true,
+    show: false,
+    center: true,
+    backgroundColor: "#12161c",
+    title: "TickNote 设置",
+    webPreferences: {
+      preload: path.join(__dirname, "preload-settings.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  settingsWindow.setMenuBarVisibility(false);
+  settingsWindow.setSkipTaskbar(true);
+  settingsWindow.loadFile("settings.html");
+  settingsWindow.once("ready-to-show", () => {
+    settingsWindow?.center();
+    settingsWindow?.show();
+  });
+  settingsWindow.webContents.on("did-finish-load", () => {
+    settingsWindow?.webContents.send("settings:changed", getSettingsPayload());
+  });
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
+  });
 }
 
 function openStatsWindow() {
@@ -448,6 +983,7 @@ function openStatsWindow() {
     resizable: !statsPrefs.mini,
     minimizable: false,
     maximizable: false,
+    skipTaskbar: true,
     show: false,
     autoHideMenuBar: true,
     title: "TickNote 统计",
@@ -461,6 +997,10 @@ function openStatsWindow() {
   });
 
   statsWindow.setMenuBarVisibility(false);
+  statsWindow.setSkipTaskbar(true);
+  statsWindow.webContents.on("context-menu", (event) => {
+    event.preventDefault();
+  });
   statsWindow.loadFile("stats.html");
 
   statsWindow.webContents.on("did-finish-load", () => {
@@ -474,7 +1014,7 @@ function openStatsWindow() {
   });
 
   statsWindow.on("moved", () => {
-    if (!statsPrefs.locked) rememberStatsBounds();
+    rememberStatsBounds();
   });
 
   statsWindow.on("resized", () => {
@@ -486,35 +1026,45 @@ function openStatsWindow() {
   });
 }
 
-async function showAboutDialog() {
-  const parent =
-    mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
-      ? mainWindow
-      : undefined;
+function showAboutDialog() {
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    aboutWindow.show();
+    aboutWindow.focus();
+    return;
+  }
 
-  const { response } = await dialog.showMessageBox(parent, {
-    type: "info",
+  aboutWindow = new BrowserWindow({
+    width: 440,
+    height: 360,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    show: false,
+    center: true,
+    backgroundColor: "#00000000",
     title: "关于 TickNote",
-    message: "TickNote（滴答记）",
-    detail: [
-      `版本 ${app.getVersion()}`,
-      "",
-      "一分钟循环倒计时，记录你每段时间在做什么。",
-      "",
-      `GitHub：${ABOUT_GITHUB}`,
-      `网站：${ABOUT_WEBSITE}`,
-    ].join("\n"),
-    buttons: ["打开 GitHub", "打开网站", "关闭"],
-    defaultId: 2,
-    cancelId: 2,
-    noLink: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload-about.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
   });
 
-  if (response === 0) {
-    await shell.openExternal(ABOUT_GITHUB);
-  } else if (response === 1) {
-    await shell.openExternal(ABOUT_WEBSITE);
-  }
+  aboutWindow.setMenuBarVisibility(false);
+  aboutWindow.setSkipTaskbar(true);
+  aboutWindow.loadFile("about.html");
+  aboutWindow.once("ready-to-show", () => {
+    aboutWindow?.center();
+    aboutWindow?.show();
+  });
+  aboutWindow.on("closed", () => {
+    aboutWindow = null;
+  });
 }
 
 function buildTrayMenu() {
@@ -549,6 +1099,10 @@ function buildTrayMenu() {
       click: () => openStatsWindow(),
     },
     {
+      label: "设置…",
+      click: () => openSettingsWindow(),
+    },
+    {
       label: "重置轮次与计时",
       click: () => {
         sendToRenderer("countdown:reset");
@@ -556,19 +1110,29 @@ function buildTrayMenu() {
     },
     { type: "separator" },
     {
-      label: `数据位置: ${getDataDir()}`,
+      label: accountUsername
+        ? `账号: ${accountUsername}`
+        : "账号: 未登录",
       enabled: false,
     },
     {
-      label: "更改数据存放位置…",
-      click: () => {
-        changeDataDirectory().catch(() => {});
-      },
+      label: formatLastSyncLabel(),
+      enabled: false,
     },
+    ...(accountToken
+      ? [
+          {
+            label: "立即同步",
+            click: () => {
+              syncNow({ quiet: false }).catch(() => {});
+            },
+          },
+        ]
+      : []),
     {
-      label: "打开数据文件夹",
+      label: "打开同步网站",
       click: () => {
-        shell.openPath(getDataDir());
+        shell.openExternal(syncApiBase || TIMELINE_URL);
       },
     },
     { type: "separator" },
@@ -629,9 +1193,14 @@ function createWindow() {
   mainWindow.setBackgroundColor("#00000000");
   mainWindow.setAlwaysOnTop(true, "screen-saver");
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  mainWindow.setSkipTaskbar(true);
   mainWindow.setClosable(false);
 
   mainWindow.loadFile("index.html");
+
+  mainWindow.webContents.on("context-menu", (event) => {
+    event.preventDefault();
+  });
 
   mainWindow.webContents.on("did-finish-load", () => {
     sendToRenderer("countdown:tick-sound", tickSoundEnabled);
@@ -684,6 +1253,14 @@ ipcMain.on("countdown:tick", (_event, label) => {
 
 ipcMain.handle("countdown:get-tick-sound", () => tickSoundEnabled);
 
+ipcMain.handle("countdown:set-tick-sound", (_event, enabled) => {
+  tickSoundEnabled = Boolean(enabled);
+  saveSettings();
+  refreshTrayMenu();
+  sendToRenderer("countdown:tick-sound", tickSoundEnabled);
+  return tickSoundEnabled;
+});
+
 ipcMain.on("countdown:resize-height", (_event, contentHeight) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const height = Math.max(
@@ -714,6 +1291,9 @@ ipcMain.handle("stats:set-prefs", (_event, patch) => {
   if (typeof patch.mini === "boolean") {
     statsPrefs.mini = patch.mini;
   }
+  if (typeof patch.showDevice === "boolean") {
+    statsPrefs.showDevice = patch.showDevice;
+  }
 
   if (wasMini !== statsPrefs.mini) {
     applyMiniLayout(statsPrefs.mini);
@@ -726,6 +1306,19 @@ ipcMain.handle("stats:set-prefs", (_event, patch) => {
 
 ipcMain.handle("sessions:list", () => loadSessions());
 
+ipcMain.handle("sessions:dismissed-gaps", () => dismissedGaps);
+
+ipcMain.handle("sessions:dismiss-gap", (_event, gapId) => {
+  const id = String(gapId || "").trim();
+  if (!id) return dismissedGaps;
+  if (!dismissedGaps.includes(id)) {
+    dismissedGaps.unshift(id);
+    dismissedGaps = dismissedGaps.slice(0, 2000);
+    saveSettings();
+  }
+  return dismissedGaps;
+});
+
 ipcMain.handle("sessions:add", (_event, session) => {
   if (!session || typeof session !== "object") {
     return loadSessions();
@@ -736,6 +1329,7 @@ ipcMain.handle("sessions:add", (_event, session) => {
   saveSessions(sessions);
   clearDraft();
   broadcastSessions(sessions);
+  syncNow({ quiet: true }).catch(() => {});
   return sessions;
 });
 
@@ -747,21 +1341,28 @@ ipcMain.handle("sessions:update", (_event, payload) => {
   if (index < 0) return sessions;
 
   const current = sessions[index];
+  const now = new Date().toISOString();
   sessions[index] = normalizeSession(
     {
       ...current,
       note: payload.note !== undefined ? payload.note : current.note,
       rounds: payload.rounds !== undefined ? payload.rounds : current.rounds,
       minutes: payload.minutes !== undefined ? payload.minutes : current.minutes,
+      device: current.device || getDeviceLabel(),
       startedAt:
         payload.startedAt !== undefined ? payload.startedAt : current.startedAt,
       endedAt: payload.endedAt !== undefined ? payload.endedAt : current.endedAt,
+      updatedAt: now,
     },
     current.id
   );
 
   saveSessions(sessions);
   broadcastSessions(sessions);
+  // Push first so remote gets the edit before any pull/merge.
+  pushLocalSessions()
+    .then(() => syncNow({ quiet: true }))
+    .catch(() => {});
   return sessions;
 });
 
@@ -797,6 +1398,110 @@ ipcMain.on("stats:close", () => {
   }
 });
 
+ipcMain.handle("settings:get", () => getSettingsPayload());
+
+ipcMain.handle("settings:save", async (_event, patch) => {
+  if (!patch || typeof patch !== "object") return getSettingsPayload();
+
+  if (typeof patch.syncApiBase === "string") {
+    const next = patch.syncApiBase.trim().replace(/\/$/, "");
+    if (next) {
+      try {
+        const url = new URL(next);
+        if (!/^https?:$/.test(url.protocol)) {
+          throw new Error("同步地址需以 http:// 或 https:// 开头");
+        }
+        syncApiBase = url.origin + (url.pathname === "/" ? "" : url.pathname);
+      } catch (err) {
+        throw new Error(err.message || "同步地址无效");
+      }
+    } else {
+      syncApiBase = DEFAULT_API_BASE;
+    }
+  }
+
+  if (typeof patch.machineName === "string") {
+    const trimmed = patch.machineName.trim();
+    if (trimmed) {
+      const oldName = machineName || defaultMachineName();
+      const oldLabel = getDeviceLabel();
+      machineName = trimmed;
+      const newLabel = getDeviceLabel();
+      rewriteSessionDevices(oldName, oldLabel, newLabel);
+      rewriteSessionDevices(
+        defaultMachineName(),
+        `${defaultMachineName()} · ${APP_DISPLAY_NAME}`,
+        newLabel
+      );
+    }
+  }
+
+  saveSettings();
+  refreshTrayMenu();
+  broadcastSettings();
+  syncNow({ quiet: true }).catch(() => {});
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:login", async () => {
+  await accountLoginOrRegister("login");
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:register", async () => {
+  await accountLoginOrRegister("register");
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:logout", () => {
+  logoutAccount();
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:sync", async () => {
+  await syncNow({ quiet: true });
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:change-data-dir", async () => {
+  await changeDataDirectory();
+  broadcastSettings();
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:open-data-dir", async () => {
+  await shell.openPath(getDataDir());
+  return true;
+});
+
+ipcMain.on("settings:close", () => {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
+});
+
+ipcMain.handle("about:get-info", () => ({
+  version: app.getVersion(),
+}));
+
+ipcMain.on("about:open-github", () => {
+  shell.openExternal(ABOUT_GITHUB);
+});
+
+ipcMain.on("about:open-website", () => {
+  shell.openExternal(ABOUT_WEBSITE);
+});
+
+ipcMain.on("about:open-timeline", () => {
+  shell.openExternal(syncApiBase || TIMELINE_URL);
+});
+
+ipcMain.on("about:close", () => {
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    aboutWindow.close();
+  }
+});
+
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 if (process.platform === "win32") {
@@ -824,6 +1529,10 @@ if (!gotLock) {
 
     createWindow();
     createTray();
+    startSyncTimer();
+    if (accountToken) {
+      syncNow({ quiet: true }).catch(() => {});
+    }
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {

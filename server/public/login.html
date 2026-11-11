@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登录 · TickNote Timeline</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#3dd6c6" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="brand" href="/">
+          <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
+          <span>TickNote Timeline</span>
+        </a>
+        <nav class="nav-links">
+          <a href="/">首页介绍</a>
+          <a class="btn soft" href="/login#register">注册</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="auth-wrap">
+      <form id="authForm" class="auth-card">
+        <h1 id="authTitle">登录</h1>
+        <p class="sub" id="authSub">登录后可查看同步统计，并管理公开主页。</p>
+        <label>
+          用户名
+          <input id="username" name="username" autocomplete="username" required />
+        </label>
+        <label>
+          密码
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            minlength="6"
+          />
+        </label>
+        <p id="authError" class="error hidden"></p>
+        <div class="auth-actions">
+          <button id="loginBtn" type="submit" class="primary">登录</button>
+          <button id="registerBtn" type="button" class="ghost">注册账号</button>
+        </div>
+        <p class="hint">
+          桌面端同步地址请填写：
+          <code>https://timeline.wangyang.wiki</code>
+        </p>
+      </form>
+    </div>
+
+    <script src="/common.js"></script>
+    <script src="/login.js"></script>
+  </body>
+</html>

@@ -4,8 +4,17 @@ contextBridge.exposeInMainWorld("statsApi", {
   list() {
     return ipcRenderer.invoke("sessions:list");
   },
+  add(session) {
+    return ipcRenderer.invoke("sessions:add", session);
+  },
   update(payload) {
     return ipcRenderer.invoke("sessions:update", payload);
+  },
+  dismissGap(gapId) {
+    return ipcRenderer.invoke("sessions:dismiss-gap", gapId);
+  },
+  getDismissedGaps() {
+    return ipcRenderer.invoke("sessions:dismissed-gaps");
   },
   close() {
     ipcRenderer.send("stats:close");

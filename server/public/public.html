@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>公开时间线 · TickNote Timeline</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#3dd6c6" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="brand" href="/">
+          <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
+          <span>TickNote Timeline</span>
+        </a>
+        <nav class="nav-links">
+          <a href="/">了解 TickNote</a>
+          <a class="btn soft" href="/login">登录</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <section id="profileCard" class="public-hero panel">
+        <p class="muted">正在加载公开主页…</p>
+      </section>
+
+      <section class="cards" id="summaryCards"></section>
+
+      <div class="public-grid">
+        <section class="panel">
+          <h2>最近按天</h2>
+          <div id="dayChart" class="bar-list"></div>
+        </section>
+        <section class="panel">
+          <h2>小时分布</h2>
+          <div id="hourChart" class="bar-list hour-grid"></div>
+        </section>
+        <section class="panel">
+          <h2>设备</h2>
+          <div id="deviceChart" class="bar-list"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>近期记录</h2>
+          <span id="sessionCount" class="muted"></span>
+        </div>
+        <div id="sessionList" class="session-list"></div>
+      </section>
+    </main>
+
+    <script src="/common.js"></script>
+    <script src="/public.js"></script>
+  </body>
+</html>

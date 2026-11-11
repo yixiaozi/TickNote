@@ -42,8 +42,7 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-body.locked .titlebar,
-body.mini .titlebar {
+body.locked .titlebar {
   -webkit-app-region: no-drag;
 }
 
@@ -73,7 +72,7 @@ body.mini #hourEmpty {
 
 body.mini .record {
   padding: 5px 7px;
-  gap: 6px;
+  row-gap: 2px;
 }
 
 body.mini .record-note {
@@ -259,6 +258,8 @@ h1 {
 }
 
 .cal-day {
+  position: relative;
+  overflow: hidden;
   height: 28px;
   border: 0;
   border-radius: 8px;
@@ -267,6 +268,22 @@ h1 {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+.cal-day::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--progress, 0) * 100%);
+  background: rgba(61, 214, 198, 0.28);
+  pointer-events: none;
+}
+
+.cal-day > span {
+  position: relative;
+  z-index: 1;
 }
 
 .cal-day.muted {
@@ -296,6 +313,8 @@ h1 {
 }
 
 .hour-chip {
+  position: relative;
+  overflow: hidden;
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
@@ -307,6 +326,22 @@ h1 {
   font-size: 13px;
   font-weight: 650;
   cursor: pointer;
+}
+
+.hour-chip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--progress, 0) * 100%);
+  background: rgba(61, 214, 198, 0.28);
+  pointer-events: none;
+}
+
+.hour-chip > span {
+  position: relative;
+  z-index: 1;
 }
 
 .hour-chip:hover {
@@ -328,34 +363,120 @@ h1 {
 
 .record {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: minmax(5.6em, auto) 2.2em minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
+  column-gap: 0;
+  row-gap: 1px;
   padding: 6px 8px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
 }
 
-.record-meta,
+.record-time {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  padding-top: 1px;
+}
+
 .record-stats {
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   line-height: 1.35;
   padding-top: 1px;
-}
-
-.record-meta {
-  color: var(--muted);
-}
-
-.record-stats {
+  padding-right: 4px;
+  white-space: nowrap;
   color: var(--accent);
   font-weight: 650;
+  text-align: right;
+  min-width: 0;
+}
+
+.record-range {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.record-main {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.record-device {
+  font-size: 11px;
+  line-height: 1.3;
+  opacity: 0.85;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 11em;
+}
+
+.record.gap {
+  border-style: dashed;
+  background: rgba(91, 141, 239, 0.06);
+}
+
+.record.gap .record-stats {
+  color: #8fa4c8;
+}
+
+.record.gap .record-note {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.record-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.gap-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(61, 214, 198, 0.35);
+  border-radius: 7px;
+  padding: 0;
+  background: rgba(61, 214, 198, 0.14);
+  color: #b8fff6;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.gap-icon-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.gap-icon-btn:hover {
+  filter: brightness(1.1);
+}
+
+.gap-icon-btn.danger {
+  border-color: rgba(239, 107, 107, 0.4);
+  background: rgba(239, 107, 107, 0.16);
+  color: #ffb4b4;
 }
 
 .record-note {
+  flex: 1 1 0%;
   min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
