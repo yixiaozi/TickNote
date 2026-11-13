@@ -40,4 +40,12 @@ contextBridge.exposeInMainWorld("countdownApi", {
   resizeHeight(contentHeight) {
     ipcRenderer.send("countdown:resize-height", contentHeight);
   },
+  getLocale() {
+    return ipcRenderer.invoke("app:get-locale");
+  },
+  onLocaleChange(callback) {
+    const listener = (_event, locale) => callback(locale);
+    ipcRenderer.on("app:locale", listener);
+    return () => ipcRenderer.removeListener("app:locale", listener);
+  },
 });

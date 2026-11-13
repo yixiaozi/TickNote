@@ -2,7 +2,7 @@ const { net } = require("electron");
 
 const DEFAULT_API_BASE = "https://timeline.wangyang.wiki";
 
-function requestJson(baseUrl, method, pathName, { token, body } = {}) {
+function requestJson(baseUrl, method, pathName, { token, body, locale } = {}) {
   const url = new URL(pathName, baseUrl.replace(/\/$/, "/") );
   return new Promise((resolve, reject) => {
     const req = net.request({
@@ -11,6 +11,7 @@ function requestJson(baseUrl, method, pathName, { token, body } = {}) {
     });
     req.setHeader("Content-Type", "application/json");
     if (token) req.setHeader("Authorization", `Bearer ${token}`);
+    if (locale) req.setHeader("X-TickNote-Locale", locale);
 
     let raw = "";
     req.on("response", (res) => {
@@ -22,12 +23,18 @@ function requestJson(baseUrl, method, pathName, { token, body } = {}) {
         try {
           data = raw ? JSON.parse(raw) : {};
         } catch {
-          data = { error: raw || "无效响应" };
+          data = { error: raw || "Invalid response" };
         }
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(data);
         } else {
-          reject(new Error(data.error || `请求失败 (${res.statusCode})`));
+          reject(
+            new Error(
+              data.error ||
+                data.errorKey ||
+                `Request failed (${res.statusCode})`
+            )
+          );
         }
       });
     });
@@ -41,10 +48,11 @@ function requestJson(baseUrl, method, pathName, { token, body } = {}) {
 
 function createAccountClient(getState) {
   async function api(method, pathName, options = {}) {
-    const { apiBase, token } = getState();
+    const { apiBase, token, locale } = getState();
     return requestJson(apiBase || DEFAULT_API_BASE, method, pathName, {
       token: options.withAuth === false ? null : token,
       body: options.body,
+      locale: locale || "en",
     });
   }
 

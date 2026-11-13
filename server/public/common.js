@@ -1,5 +1,19 @@
 const TOKEN_KEY = "ticknote_timeline_token";
 
+function t(key, vars) {
+  if (window.TickNoteI18n && typeof window.TickNoteI18n.t === "function") {
+    return window.TickNoteI18n.t(key, vars);
+  }
+  return key;
+}
+
+function getLocale() {
+  if (window.TickNoteI18n && typeof window.TickNoteI18n.getLocale === "function") {
+    return window.TickNoteI18n.getLocale();
+  }
+  return "en";
+}
+
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
 }
@@ -10,8 +24,11 @@ function setToken(token) {
 }
 
 async function api(path, options = {}) {
+  const locale = getLocale();
   const headers = {
     "Content-Type": "application/json",
+    "X-TickNote-Locale": locale,
+    "Accept-Language": locale === "zh" ? "zh-CN,zh;q=0.9,en;q=0.8" : "en",
     ...(options.headers || {}),
   };
   const token = getToken();
@@ -19,7 +36,16 @@ async function api(path, options = {}) {
   const res = await fetch(path, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `请求失败 (${res.status})`);
+    const dictKey = data.errorKey ? `api.${data.errorKey}` : "";
+    const hasKey =
+      dictKey &&
+      (window.TickNoteI18n?.dictionaries?.en?.[dictKey] ||
+        window.TickNoteI18n?.dictionaries?.zh?.[dictKey]);
+    throw new Error(
+      hasKey
+        ? t(dictKey)
+        : data.error || t("api.request_failed", { status: res.status })
+    );
   }
   return data;
 }
@@ -34,26 +60,44 @@ function escapeHtml(text) {
 
 function formatDuration(minutes) {
   const total = Math.round((Number(minutes) || 0) * 10) / 10;
-  if (total < 60) return `${total}分`;
+  if (total < 60) return t("duration.minutes", { n: total });
   const h = Math.floor(total / 60);
   const m = Math.round((total - h * 60) * 10) / 10;
-  return m > 0 ? `${h}小时${m}分` : `${h}小时`;
+  return m > 0
+    ? t("duration.hours_minutes", { h, m })
+    : t("duration.hours", { h });
 }
 
 function formatClock(iso) {
-  if (!iso) return "—";
+  if (!iso) return t("common.dash");
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return t("common.dash");
   const p = (n) => String(n).padStart(2, "0");
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
     d.getMinutes()
   )}`;
 }
 
+function localizeNote(note) {
+  const value = String(note || "").trim();
+  if (!value || value === "未命名" || value === "Untitled") {
+    return t("common.unnamed");
+  }
+  return value;
+}
+
+function localizeDevice(device) {
+  const value = String(device || "").trim();
+  if (!value || value === "未知设备" || value === "Unknown device") {
+    return t("common.unknown_device");
+  }
+  return value;
+}
+
 function renderBars(container, items, nameKey, valueKey) {
   if (!container) return;
   if (!items.length) {
-    container.innerHTML = `<div class="muted">暂无数据</div>`;
+    container.innerHTML = `<div class="muted">${escapeHtml(t("common.no_data"))}</div>`;
     return;
   }
   const max = Math.max(...items.map((i) => Number(i[valueKey]) || 0), 0.1);
@@ -61,8 +105,11 @@ function renderBars(container, items, nameKey, valueKey) {
     .map((item) => {
       const value = Number(item[valueKey]) || 0;
       const pct = Math.max(2, Math.round((value / max) * 100));
+      const rawName = String(item[nameKey]);
+      const name =
+        nameKey === "device" ? localizeDevice(rawName) : rawName;
       return `<div class="bar-row">
-        <div class="name">${escapeHtml(String(item[nameKey]))}</div>
+        <div class="name">${escapeHtml(name)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
         <div class="num">${formatDuration(value)}</div>
       </div>`;
@@ -73,24 +120,24 @@ function renderBars(container, items, nameKey, valueKey) {
 function renderSummaryCards(container, summary) {
   if (!container) return;
   const cards = [
-    ["总时长", formatDuration(summary.totalMinutes)],
-    ["记录数", String(summary.totalSessions)],
-    ["活跃天数", String(summary.activeDays)],
-    ["平均每条", formatDuration(summary.averageMinutes)],
+    [t("summary.total_time"), formatDuration(summary.totalMinutes)],
+    [t("summary.sessions"), String(summary.totalSessions)],
+    [t("summary.active_days"), String(summary.activeDays)],
+    [t("summary.avg_session"), formatDuration(summary.averageMinutes)],
   ];
   container.innerHTML = cards
     .map(
       ([label, value]) =>
-        `<article class="card"><div class="label">${label}</div><div class="value">${value}</div></article>`
+        `<article class="card"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></article>`
     )
     .join("");
 }
 
 function renderSessions(container, sessions, countEl) {
   if (!container) return;
-  if (countEl) countEl.textContent = `${sessions.length} 条`;
+  if (countEl) countEl.textContent = t("common.sessions_count", { n: sessions.length });
   if (!sessions.length) {
-    container.innerHTML = `<div class="muted">暂无记录</div>`;
+    container.innerHTML = `<div class="muted">${escapeHtml(t("common.no_sessions"))}</div>`;
     return;
   }
   container.innerHTML = sessions
@@ -99,9 +146,9 @@ function renderSessions(container, sessions, countEl) {
       return `<article class="session">
         <div class="meta">${formatClock(s.endedAt || s.startedAt)}</div>
         <div class="mins">${formatDuration(s.minutes)}</div>
-        <div class="note">${escapeHtml(s.note || "未命名")}${
+        <div class="note">${escapeHtml(localizeNote(s.note))}${
           s.device
-            ? `<div class="meta">${escapeHtml(s.device)}</div>`
+            ? `<div class="meta">${escapeHtml(localizeDevice(s.device))}</div>`
             : ""
         }</div>
       </article>`;

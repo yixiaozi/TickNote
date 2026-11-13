@@ -1,3 +1,5 @@
+const { t, applyI18n, formatDuration, setLocale } = window.TickNoteI18n;
+
 const recordListEl = document.getElementById("recordList");
 const hourListEl = document.getElementById("hourList");
 const emptyEl = document.getElementById("empty");
@@ -6,6 +8,7 @@ const totalMinutesEl = document.getElementById("totalMinutes");
 const totalSessionsEl = document.getElementById("totalSessions");
 const dateLabel = document.getElementById("dateLabel");
 const homeBtn = document.getElementById("homeBtn");
+const allDayBtn = document.getElementById("allDayBtn");
 const prevDayBtn = document.getElementById("prevDayBtn");
 const nextDayBtn = document.getElementById("nextDayBtn");
 const closeBtn = document.getElementById("closeBtn");
@@ -45,11 +48,36 @@ let prefs = {
 const OPACITY_STEPS = [1, 0.85, 0.7, 0.55];
 const MINI_LIMIT = 5;
 const GAP_THRESHOLD_MS = 5000;
-const GAP_PLACEHOLDER = "空白时间（可填写或删除）";
 /** @type {Set<string>} */
 let dismissedGaps = new Set();
 /** @type {{ dateKey: string, sessionsRef: any, items: any[] } | null} */
 let dayTimelineCache = null;
+
+function gapPlaceholder() {
+  return t("stats.gap_placeholder");
+}
+
+function isGapPlaceholderText(text) {
+  const v = String(text || "").trim();
+  if (!v) return false;
+  const dicts = window.TickNoteI18n.dictionaries || {};
+  return (
+    v === gapPlaceholder() ||
+    v === t("stats.gap_note") ||
+    v === dicts.en?.["stats.gap_placeholder"] ||
+    v === dicts.zh?.["stats.gap_placeholder"] ||
+    v === dicts.en?.["stats.gap_note"] ||
+    v === dicts.zh?.["stats.gap_note"]
+  );
+}
+
+function applyLocale(locale) {
+  setLocale(locale || "en");
+  applyI18n();
+  document.title = t("stats.title");
+  dayTimelineCache = null;
+  renderPrefs();
+}
 
 function escapeHtml(text) {
   return String(text)
@@ -86,18 +114,6 @@ function sessionTime(session) {
 
 function formatClock(date) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatDuration(minutes) {
-  const raw = Math.max(0, Number(minutes) || 0);
-  const total = Math.round(raw * 10) / 10;
-  if (total < 60) {
-    return `${total}分`;
-  }
-  const hours = Math.floor(total / 60);
-  const mins = Math.round((total - hours * 60) * 10) / 10;
-  if (mins <= 0) return `${hours}小时`;
-  return `${hours}小时${mins}分`;
 }
 
 /** Prefer wall-clock range; fall back to stored minutes. */
@@ -182,7 +198,7 @@ function buildGapItems(gapStart, gapEnd) {
       return {
         id,
         isGap: true,
-        note: GAP_PLACEHOLDER,
+        note: gapPlaceholder(),
         rounds: 0,
         minutes,
         startedAt,
@@ -247,9 +263,9 @@ function hourOfEnd(date) {
 
 function recordsForSelection() {
   if (selectedHour === null) return [];
-  return getDayTimeline(selectedDate).filter(
-    (item) => hourOfEnd(sessionEnd(item)) === selectedHour
-  );
+  const items = getDayTimeline(selectedDate);
+  if (selectedHour === "all") return items;
+  return items.filter((item) => hourOfEnd(sessionEnd(item)) === selectedHour);
 }
 
 function dayProgressRatio(dateKey) {
@@ -303,15 +319,21 @@ function renderDate() {
 
 function renderHours() {
   const hours = hoursForDate(selectedDate);
+  allDayBtn?.classList.toggle("active", selectedHour === "all");
+  allDayBtn?.classList.toggle("hidden", !hours.length);
   if (!hours.length) {
     selectedHour = null;
     hourListEl.innerHTML = "";
     return;
   }
 
-  if (selectedHour === null || !hours.includes(selectedHour)) {
+  if (
+    selectedHour !== "all" &&
+    (selectedHour === null || !hours.includes(selectedHour))
+  ) {
     selectedHour = hours[hours.length - 1];
   }
+  allDayBtn?.classList.toggle("active", selectedHour === "all");
 
   hourListEl.innerHTML = hours
     .map((hour) => {
@@ -406,7 +428,7 @@ function renderRecordItems(items, highlightTerms = []) {
       const time = sessionTime(session);
       const start = session.startedAt
         ? formatClock(new Date(session.startedAt))
-        : "—";
+        : t("common.dash");
       const end = formatClock(time);
       const minutes = sessionMinutes(session);
       const device = String(session.device || "").trim();
@@ -416,20 +438,22 @@ function renderRecordItems(items, highlightTerms = []) {
           : "";
       const isGap = Boolean(session.isGap);
       const noteText = isGap
-        ? session.note || GAP_PLACEHOLDER
-        : session.note || "未命名";
+        ? session.note || gapPlaceholder()
+        : session.note || t("common.unnamed");
       const noteHtml = highlightTerms.length
         ? highlightSearchHtml(noteText, highlightTerms)
         : escapeHtml(noteText);
       const datePart = session.showDate
         ? `<div class="record-date">${escapeHtml(toDateKey(sessionEnd(session)))}</div>`
         : "";
+      const gapSave = t("stats.gap_save");
+      const gapDismiss = t("stats.gap_dismiss");
       const actions = isGap
         ? `<div class="record-actions">
-            <button class="gap-icon-btn save" type="button" data-fill-gap="${escapeHtml(session.id)}" title="保存为记录" aria-label="保存为记录">
+            <button class="gap-icon-btn save" type="button" data-fill-gap="${escapeHtml(session.id)}" title="${escapeHtml(gapSave)}" aria-label="${escapeHtml(gapSave)}">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 16.6 4.8 12.2l1.4-1.4 3 3 8-8 1.4 1.4-9.4 9.4z"/></svg>
             </button>
-            <button class="gap-icon-btn danger" type="button" data-dismiss-gap="${escapeHtml(session.id)}" title="删除空白" aria-label="删除空白">
+            <button class="gap-icon-btn danger" type="button" data-dismiss-gap="${escapeHtml(session.id)}" title="${escapeHtml(gapDismiss)}" aria-label="${escapeHtml(gapDismiss)}">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h4v2H4V6h4l1-2zm1 6h2v8h-2v-8zm4 0h2v8h-2v-8zM7 10h2v8H7v-8zm-1 12h12l1-12H5l1 12z"/></svg>
             </button>
           </div>`
@@ -453,7 +477,7 @@ function renderRecordItems(items, highlightTerms = []) {
               data-ended="${escapeHtml(session.endedAt || "")}"
               data-minutes="${minutes}"
               data-placeholder="${isGap ? "1" : "0"}"
-              title="回车保存；Ctrl+Enter 换行"
+              title="${escapeHtml(t("stats.note_edit_title"))}"
             >${noteHtml}</div>
             ${actions}
           </div>
@@ -516,13 +540,13 @@ function renderRecords() {
     const items = searchSessions(searchQuery);
     emptyEl.classList.toggle("hidden", items.length > 0 || !searchQuery);
     if (!searchQuery) {
-      emptyEl.textContent = "输入关键词搜索历史记录";
+      emptyEl.textContent = t("stats.empty_search_hint");
       emptyEl.classList.remove("hidden");
     } else if (!items.length) {
-      emptyEl.textContent = "没有匹配的记录";
+      emptyEl.textContent = t("stats.empty_search");
       emptyEl.classList.remove("hidden");
     } else {
-      emptyEl.textContent = "这一天还没有记录。";
+      emptyEl.textContent = t("stats.empty_day");
     }
     const { include } = parseSearchQuery(searchQuery);
     updateSummary(items);
@@ -541,7 +565,7 @@ function renderRecords() {
   }
 
   miniEmptyEl.classList.add("hidden");
-  emptyEl.textContent = "这一天还没有记录。";
+  emptyEl.textContent = t("stats.empty_day");
   const dayItems = sessionsOnDate(selectedDate);
   const items = recordsForSelection();
 
@@ -551,14 +575,19 @@ function renderRecords() {
     !(dayItems.length > 0 && items.length === 0)
   );
 
-  updateSummary(selectedHour === null ? dayItems : items);
+  updateSummary(
+    selectedHour === null || selectedHour === "all" ? dayItems : items
+  );
   renderRecordItems(items);
 }
 
 function renderCalendar() {
   const year = calendarMonth.getFullYear();
   const month = calendarMonth.getMonth();
-  calMonthLabel.textContent = `${year}年${month + 1}月`;
+  calMonthLabel.textContent = t("stats.month_label", {
+    y: year,
+    m: month + 1,
+  });
 
   const firstDay = new Date(year, month, 1);
   const startWeekday = firstDay.getDay();
@@ -639,7 +668,7 @@ function setSessions(sessions) {
 }
 
 async function saveNote(sessionId, note) {
-  const cleaned = note.trim() || "未命名";
+  const cleaned = note.trim() || t("common.unnamed");
   const sessions = await window.statsApi.update({
     id: sessionId,
     note: cleaned,
@@ -651,9 +680,9 @@ async function saveNote(sessionId, note) {
 
 async function fillGapFromNote(noteEl, { force = false } = {}) {
   let note = (noteEl.textContent || "").trim();
-  if (!note || note === GAP_PLACEHOLDER) {
+  if (!note || isGapPlaceholderText(note)) {
     if (!force) return;
-    note = "空白时间";
+    note = t("stats.gap_note");
   }
   const startedAt = noteEl.dataset.started;
   const endedAt = noteEl.dataset.ended;
@@ -685,6 +714,13 @@ hourListEl.addEventListener("click", (event) => {
   if (nextHour === selectedHour) return;
   selectedHour = nextHour;
   // Only refresh chips + records; avoid rebuilding calendar timeline.
+  renderHours();
+  renderRecords();
+});
+
+allDayBtn?.addEventListener("click", () => {
+  if (selectedHour === "all") return;
+  selectedHour = "all";
   renderHours();
   renderRecords();
 });
@@ -721,7 +757,7 @@ recordListEl.addEventListener("focusin", (event) => {
   }
   if (target.dataset.gap !== "1") return;
   const text = (target.textContent || "").trim();
-  if (text === GAP_PLACEHOLDER || text === "空白时间") {
+  if (isGapPlaceholderText(text)) {
     target.textContent = "";
     target.dataset.placeholder = "1";
   }
@@ -737,7 +773,7 @@ recordListEl.addEventListener("focusout", async (event) => {
   if (target.dataset.gap === "1") {
     const text = (target.textContent || "").trim();
     if (!text) {
-      target.textContent = GAP_PLACEHOLDER;
+      target.textContent = gapPlaceholder();
       return;
     }
     await fillGapFromNote(target);
@@ -844,15 +880,27 @@ searchInput?.addEventListener("keydown", (event) => {
 
 function renderPrefs() {
   miniBtn.classList.toggle("active", Boolean(prefs.mini));
+  miniBtn.title = prefs.mini ? t("stats.mini_exit") : t("stats.mini");
+  miniBtn.setAttribute("aria-label", miniBtn.title);
+  searchBtn?.classList.toggle("active", searchOpen);
+  searchBtn?.setAttribute("title", t("stats.search"));
+  searchBtn?.setAttribute("aria-label", t("stats.search"));
   deviceBtn.classList.toggle("active", Boolean(prefs.showDevice));
-  deviceBtn.title = prefs.showDevice ? "隐藏机器名" : "显示机器名";
+  deviceBtn.title = prefs.showDevice
+    ? t("stats.device_hide")
+    : t("stats.device_show");
+  deviceBtn.setAttribute("aria-label", deviceBtn.title);
   lockBtn.classList.toggle("active", Boolean(prefs.locked));
-  lockBtn.title = prefs.locked ? "取消固定位置" : "固定位置";
+  lockBtn.title = prefs.locked ? t("stats.unlock") : t("stats.lock");
+  lockBtn.setAttribute("aria-label", lockBtn.title);
   topBtn.classList.toggle("active", Boolean(prefs.alwaysOnTop));
-  topBtn.title = prefs.alwaysOnTop ? "取消置顶" : "窗口置顶";
+  topBtn.title = prefs.alwaysOnTop ? t("stats.top_off") : t("stats.top");
+  topBtn.setAttribute("aria-label", topBtn.title);
   opacityBtn.classList.toggle("active", prefs.opacity < 0.999);
   opacityBtn.textContent = `${Math.round(prefs.opacity * 100)}`;
-  opacityBtn.title = `透明度 ${Math.round(prefs.opacity * 100)}%`;
+  opacityBtn.title = t("stats.opacity", {
+    n: Math.round(prefs.opacity * 100),
+  });
   document.body.classList.toggle("locked", Boolean(prefs.locked));
   document.body.classList.toggle("mini", Boolean(prefs.mini));
   if (prefs.mini) {
@@ -898,12 +946,34 @@ closeBtn.addEventListener("click", () => {
 if (window.statsApi?.onPrefs) {
   window.statsApi.onPrefs((next) => {
     prefs = next;
+    if (next?.locale) {
+      setLocale(next.locale);
+      applyI18n();
+      document.title = t("stats.title");
+    }
     renderPrefs();
   });
 }
 
+if (window.statsApi?.onChanged) {
+  window.statsApi.onChanged((payload) => {
+    if (payload?.locale) applyLocale(payload.locale);
+  });
+}
+
+if (window.statsApi?.onLocaleChange) {
+  window.statsApi.onLocaleChange((locale) => applyLocale(locale));
+}
+
+applyLocale("en");
+
 window.statsApi.getPrefs().then((next) => {
   prefs = { mini: false, showDevice: false, locked: false, ...next };
+  if (next?.locale) {
+    setLocale(next.locale);
+    applyI18n();
+    document.title = t("stats.title");
+  }
   renderPrefs();
 });
 

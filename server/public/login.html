@@ -1,9 +1,9 @@
 ﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>登录 · TickNote Timeline</title>
+    <title data-i18n="login.title">Log in · TickNote Timeline</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,25 +16,32 @@
       <div class="site-header-inner">
         <a class="brand" href="/">
           <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
-          <span>TickNote Timeline</span>
+          <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="/">首页介绍</a>
-          <a class="btn soft" href="/login#register">注册</a>
+          <a href="/" data-i18n="nav.home_intro">Overview</a>
+          <label class="lang-switch" data-i18n-aria="lang.label">
+            <span class="visually-hidden" data-i18n="lang.label">Language</span>
+            <select data-locale-select aria-label="Language">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <a class="btn soft" href="/login#register" data-i18n="nav.register">Sign up free</a>
         </nav>
       </div>
     </header>
 
     <div class="auth-wrap">
       <form id="authForm" class="auth-card">
-        <h1 id="authTitle">登录</h1>
-        <p class="sub" id="authSub">登录后可查看同步统计，并管理公开主页。</p>
+        <h1 id="authTitle" data-i18n="login.heading">Log in</h1>
+        <p class="sub" id="authSub" data-i18n="login.sub">Sign in to view sync stats and manage your public page.</p>
         <label>
-          用户名
+          <span data-i18n="login.username">Username</span>
           <input id="username" name="username" autocomplete="username" required />
         </label>
         <label>
-          密码
+          <span data-i18n="login.password">Password</span>
           <input
             id="password"
             name="password"
@@ -46,16 +53,17 @@
         </label>
         <p id="authError" class="error hidden"></p>
         <div class="auth-actions">
-          <button id="loginBtn" type="submit" class="primary">登录</button>
-          <button id="registerBtn" type="button" class="ghost">注册账号</button>
+          <button id="loginBtn" type="submit" class="primary" data-i18n="login.submit">Log in</button>
+          <button id="registerBtn" type="button" class="ghost" data-i18n="login.register_btn">Create an account</button>
         </div>
         <p class="hint">
-          桌面端同步地址请填写：
+          <span data-i18n="login.hint">Desktop sync URL:</span>
           <code>https://timeline.wangyang.wiki</code>
         </p>
       </form>
     </div>
 
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
     <script src="/login.js"></script>
   </body>

@@ -1,9 +1,9 @@
 ﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>控制台 · TickNote Timeline</title>
+    <title data-i18n="app.title">Dashboard · TickNote Timeline</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,13 +16,20 @@
       <div class="site-header-inner">
         <a class="brand" href="/">
           <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
-          <span>TickNote Timeline</span>
+          <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="/app">控制台</a>
-          <a href="/settings">设置</a>
-          <a id="publicLink" href="#" class="hidden">我的公开页</a>
-          <button id="logoutBtn" type="button" class="ghost">退出</button>
+          <a href="/app" data-i18n="nav.app">Dashboard</a>
+          <a href="/settings" data-i18n="nav.settings">Settings</a>
+          <a id="publicLink" href="#" class="hidden" data-i18n="nav.my_public">My public page</a>
+          <label class="lang-switch" data-i18n-aria="lang.label">
+            <span class="visually-hidden" data-i18n="lang.label">Language</span>
+            <select data-locale-select aria-label="Language">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">Log out</button>
         </nav>
       </div>
     </header>
@@ -30,41 +37,42 @@
     <main class="page">
       <header class="topbar">
         <div>
-          <h1>控制台</h1>
+          <h1 data-i18n="app.heading">Dashboard</h1>
           <p id="welcome" class="sub"></p>
         </div>
         <div class="topbar-actions">
-          <button id="refreshBtn" type="button" class="ghost">刷新</button>
-          <a class="btn soft" href="/settings">账号设置</a>
+          <button id="refreshBtn" type="button" class="ghost" data-i18n="app.refresh">Refresh</button>
+          <a class="btn soft" href="/settings" data-i18n="app.account_settings">Account settings</a>
         </div>
       </header>
 
       <section class="cards" id="summaryCards"></section>
 
       <section class="panel">
-        <h2>按天（最近）</h2>
+        <h2 data-i18n="app.days_title">By day (recent)</h2>
         <div id="dayChart" class="bar-list"></div>
       </section>
 
       <section class="panel">
-        <h2>一天中的分布（小时）</h2>
+        <h2 data-i18n="app.hours_title">Distribution by hour</h2>
         <div id="hourChart" class="bar-list hour-grid"></div>
       </section>
 
       <section class="panel">
-        <h2>设备</h2>
+        <h2 data-i18n="app.devices_title">Devices</h2>
         <div id="deviceChart" class="bar-list"></div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>最近记录</h2>
+          <h2 data-i18n="app.recent_title">Recent sessions</h2>
           <span id="sessionCount" class="muted"></span>
         </div>
         <div id="sessionList" class="session-list"></div>
       </section>
     </main>
 
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
     <script src="/app.js"></script>
   </body>

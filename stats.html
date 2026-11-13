@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,26 +7,94 @@
       content="default-src 'self'; style-src 'self'; script-src 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TickNote 统计</title>
+    <title data-i18n="stats.title">TickNote Stats</title>
     <link rel="stylesheet" href="stats.css" />
   </head>
   <body>
     <header class="titlebar">
       <div class="titlebar-left">
-        <h1>时间统计</h1>
+        <h1 data-i18n="stats.heading">Time stats</h1>
         <div class="summary-inline">
-          <span><b id="totalMinutes">0分</b></span>
-          <span><b id="totalSessions">0</b> 条</span>
+          <span><b id="totalMinutes">0 min</b></span>
+          <span
+            ><b id="totalSessions">0</b
+            ><span data-i18n="stats.sessions_suffix"> sessions</span></span
+          >
         </div>
       </div>
       <div class="titlebar-actions">
-        <button id="miniBtn" class="tool-btn" type="button" title="迷你模式：最近5条">迷</button>
-        <button id="searchBtn" class="tool-btn" type="button" title="搜索历史">搜</button>
-        <button id="deviceBtn" class="tool-btn" type="button" title="显示机器名">机</button>
-        <button id="lockBtn" class="tool-btn" type="button" title="固定位置">固</button>
-        <button id="topBtn" class="tool-btn" type="button" title="窗口置顶">顶</button>
-        <button id="opacityBtn" class="tool-btn" type="button" title="透明度">透</button>
-        <button id="closeBtn" class="close-btn" type="button" title="关闭">×</button>
+        <button
+          id="miniBtn"
+          class="tool-btn"
+          type="button"
+          title="Mini mode: last 5"
+          aria-label="Mini mode: last 5"
+          data-i18n-title="stats.mini"
+          data-i18n-aria="stats.mini"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6H4v-6zm10 0h6v6h-6v-6zM4 4h16v8H4V4zm2 2v4h12V6H6z"/></svg>
+        </button>
+        <button
+          id="searchBtn"
+          class="tool-btn"
+          type="button"
+          title="Search history"
+          aria-label="Search history"
+          data-i18n-title="stats.search"
+          data-i18n-aria="stats.search"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm7.7 11.3 3.3 3.3-1.4 1.4-3.3-3.3 1.4-1.4z"/></svg>
+        </button>
+        <button
+          id="deviceBtn"
+          class="tool-btn"
+          type="button"
+          title="Show machine name"
+          aria-label="Show machine name"
+          data-i18n-title="stats.device_show"
+          data-i18n-aria="stats.device_show"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H3V5zm2 2v8h14V7H5zm4 11h6v2H9v-2z"/></svg>
+        </button>
+        <button
+          id="lockBtn"
+          class="tool-btn"
+          type="button"
+          title="Pin position"
+          aria-label="Pin position"
+          data-i18n-title="stats.lock"
+          data-i18n-aria="stats.lock"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V8a4 4 0 1 1 8 0v2h1.5A1.5 1.5 0 0 1 19 11.5v8A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10H8zm2 0h4V8a2 2 0 1 0-4 0v2zm2 4a1.5 1.5 0 0 0-.5 2.9V19h1v-2.1A1.5 1.5 0 0 0 12 14z"/></svg>
+        </button>
+        <button
+          id="topBtn"
+          class="tool-btn"
+          type="button"
+          title="Always on top"
+          aria-label="Always on top"
+          data-i18n-title="stats.top"
+          data-i18n-aria="stats.top"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 10h4v8h6v-8h4L12 3zm-7 16h14v2H5v-2z"/></svg>
+        </button>
+        <button
+          id="opacityBtn"
+          class="tool-btn opacity-btn"
+          type="button"
+          title="Opacity 100%"
+        >
+          100
+        </button>
+        <button
+          id="closeBtn"
+          class="close-btn"
+          type="button"
+          title="Close"
+          data-i18n-title="common.close"
+        >
+          ×
+        </button>
       </div>
     </header>
 
@@ -35,43 +103,114 @@
         id="searchInput"
         class="search-input"
         type="search"
-        placeholder="多关键词=同时包含，-词=排除…"
+        placeholder="All words required; -word excludes…"
+        data-i18n-placeholder="stats.search_placeholder"
         spellcheck="false"
         autocomplete="off"
       />
-      <button id="searchClearBtn" class="nav-btn" type="button" title="关闭搜索">×</button>
+      <button
+        id="searchClearBtn"
+        class="nav-btn"
+        type="button"
+        title="Close search"
+        data-i18n-title="stats.search_close"
+      >
+        ×
+      </button>
     </section>
 
     <section id="navLine" class="nav-line">
       <div class="date-cluster">
-        <button id="homeBtn" class="nav-btn home-btn" type="button" title="回到当前时间">⌂</button>
-        <button id="prevDayBtn" class="nav-btn" type="button" title="前一天有数据">‹</button>
+        <button
+          id="homeBtn"
+          class="nav-btn icon-nav-btn"
+          type="button"
+          title="Jump to now"
+          aria-label="Jump to now"
+          data-i18n-title="stats.home"
+          data-i18n-aria="stats.home"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 11h3v9h5v-6h2v6h5v-9h3L12 3z"/></svg>
+        </button>
+        <button
+          id="prevDayBtn"
+          class="nav-btn"
+          type="button"
+          title="Previous day with data"
+          data-i18n-title="stats.prev_day"
+        >
+          ‹
+        </button>
         <div class="date-wrap">
-          <button id="dateLabel" class="date-text" type="button" title="选择有数据的日期">
+          <button
+            id="dateLabel"
+            class="date-text"
+            type="button"
+            title="Pick a date with data"
+            data-i18n-title="stats.pick_date"
+          >
             2026-11-10
           </button>
-          <div id="calendarPop" class="calendar-pop hidden" role="dialog" aria-label="选择日期">
+          <div
+            id="calendarPop"
+            class="calendar-pop hidden"
+            role="dialog"
+            aria-label="Choose date"
+            data-i18n-aria="stats.pick_date_aria"
+          >
             <div class="cal-head">
               <button id="calPrevMonth" class="nav-btn" type="button">‹</button>
-              <div id="calMonthLabel" class="cal-month">2026年11月</div>
+              <div id="calMonthLabel" class="cal-month">2026-11</div>
               <button id="calNextMonth" class="nav-btn" type="button">›</button>
             </div>
             <div class="cal-weekdays">
-              <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+              <span data-i18n="stats.weekday.0">Su</span
+              ><span data-i18n="stats.weekday.1">Mo</span
+              ><span data-i18n="stats.weekday.2">Tu</span
+              ><span data-i18n="stats.weekday.3">We</span
+              ><span data-i18n="stats.weekday.4">Th</span
+              ><span data-i18n="stats.weekday.5">Fr</span
+              ><span data-i18n="stats.weekday.6">Sa</span>
             </div>
             <div id="calDays" class="cal-days"></div>
           </div>
         </div>
-        <button id="nextDayBtn" class="nav-btn" type="button" title="后一天有数据">›</button>
+        <button
+          id="nextDayBtn"
+          class="nav-btn"
+          type="button"
+          title="Next day with data"
+          data-i18n-title="stats.next_day"
+        >
+          ›
+        </button>
+        <button
+          id="allDayBtn"
+          class="nav-btn icon-nav-btn all-day-btn"
+          type="button"
+          title="Show all records for the day"
+          aria-label="All day"
+          data-i18n-title="stats.all_day"
+          data-i18n-aria="stats.all_day_aria"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0-5.2a1 1 0 0 1 1 1V5a1 1 0 1 1-2 0V2.8a1 1 0 0 1 1-1zm0 16.4a1 1 0 0 1 1 1V21.2a1 1 0 1 1-2 0v-1.8a1 1 0 0 1 1-1zM2.8 11a1 1 0 0 1 1-1H5.6a1 1 0 1 1 0 2H3.8a1 1 0 0 1-1-1zm16.4 0a1 1 0 0 1 1-1h1.8a1 1 0 1 1 0 2h-1.8a1 1 0 0 1-1-1zM5.05 5.05a1 1 0 0 1 1.41 0l1.27 1.27a1 1 0 1 1-1.41 1.41L5.05 6.46a1 1 0 0 1 0-1.41zm11.22 11.22a1 1 0 0 1 1.41 0l1.27 1.27a1 1 0 1 1-1.41 1.41l-1.27-1.27a1 1 0 0 1 0-1.41zM5.05 18.95a1 1 0 0 1 0-1.41l1.27-1.27a1 1 0 1 1 1.41 1.41l-1.27 1.27a1 1 0 0 1-1.41 0zm11.22-11.22a1 1 0 0 1 0-1.41l1.27-1.27a1 1 0 1 1 1.41 1.41l-1.27 1.27a1 1 0 0 1-1.41 0z"/></svg>
+        </button>
       </div>
       <div id="hourList" class="hour-list"></div>
     </section>
 
     <section id="recordList" class="record-list"></section>
-    <div id="empty" class="empty hidden">这一天还没有记录。</div>
-    <div id="hourEmpty" class="empty hidden">请选择有数据的小时。</div>
-    <div id="miniEmpty" class="empty hidden">还没有记录。</div>
+    <div id="empty" class="empty hidden" data-i18n="stats.empty_day">
+      No records for this day.
+    </div>
+    <div id="hourEmpty" class="empty hidden" data-i18n="stats.empty_hour">
+      Pick an hour that has data.
+    </div>
+    <div id="miniEmpty" class="empty hidden" data-i18n="stats.empty_mini">
+      No records yet.
+    </div>
 
+    <script src="i18n.js"></script>
     <script src="stats.js"></script>
   </body>
 </html>

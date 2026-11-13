@@ -24,27 +24,28 @@ function createMcpHandler({
   const tools = [
     {
       name: "ticknote_whoami",
-      description: "返回当前登录用户的资料与公开主页地址",
+      description: "Return the current user's profile and public page URL",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     {
       name: "ticknote_summary",
-      description: "获取当前用户的时间统计摘要（总时长、活跃天、设备、小时分布）",
+      description:
+        "Get the current user's time summary (total minutes, active days, devices, hourly distribution)",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     {
       name: "ticknote_list_sessions",
-      description: "列出最近的时间记录",
+      description: "List recent time sessions",
       inputSchema: {
         type: "object",
         properties: {
           limit: {
             type: "number",
-            description: "返回条数，默认 30，最大 200",
+            description: "Number of sessions to return (default 30, max 200)",
           },
           query: {
             type: "string",
-            description: "按备注关键词过滤（可选）",
+            description: "Optional note keyword filter",
           },
         },
         additionalProperties: false,
@@ -52,12 +53,12 @@ function createMcpHandler({
     },
     {
       name: "ticknote_search_notes",
-      description: "在备注中搜索时间记录",
+      description: "Search time sessions by note text",
       inputSchema: {
         type: "object",
         properties: {
-          query: { type: "string", description: "搜索关键词" },
-          limit: { type: "number", description: "返回条数，默认 20" },
+          query: { type: "string", description: "Search keyword" },
+          limit: { type: "number", description: "Number of results (default 20)" },
         },
         required: ["query"],
         additionalProperties: false,
@@ -65,11 +66,11 @@ function createMcpHandler({
     },
     {
       name: "ticknote_public_profile",
-      description: "读取某用户的公开主页（仅当对方开启公开时）",
+      description: "Read a user's public page (only if they enabled sharing)",
       inputSchema: {
         type: "object",
         properties: {
-          username: { type: "string", description: "用户名" },
+          username: { type: "string", description: "Username" },
         },
         required: ["username"],
         additionalProperties: false,
@@ -77,7 +78,8 @@ function createMcpHandler({
     },
     {
       name: "ticknote_update_settings",
-      description: "更新当前用户设置：显示名、简介、是否公开、公开标题",
+      description:
+        "Update current user settings: display name, bio, public flag, public title",
       inputSchema: {
         type: "object",
         properties: {
@@ -91,14 +93,16 @@ function createMcpHandler({
     },
     {
       name: "ticknote_mcp_token",
-      description: "查看或重新生成长期 MCP 访问令牌（用于 Cursor 等客户端）",
+      description:
+        "Inspect or rotate the long-lived MCP access token (for Cursor and similar clients)",
       inputSchema: {
         type: "object",
         properties: {
           action: {
             type: "string",
             enum: ["status", "rotate", "revoke"],
-            description: "status=查看是否已有令牌；rotate=生成新令牌；revoke=作废",
+            description:
+              "status=check whether a token exists; rotate=issue a new token; revoke=invalidate",
           },
         },
         required: ["action"],
@@ -145,7 +149,7 @@ function createMcpHandler({
       }
       case "ticknote_search_notes": {
         const q = String(args.query || "").trim().toLowerCase();
-        if (!q) return textResult("请提供 query");
+        if (!q) return textResult("Please provide a query");
         const limit = Math.min(100, Math.max(1, Number(args.limit) || 20));
         const rows = listSessionsForUser(user.id)
           .filter((s) => String(s.note || "").toLowerCase().includes(q))
@@ -163,7 +167,7 @@ function createMcpHandler({
         const username = String(args.username || "").trim();
         const target = getUserByUsername(username);
         if (!target || !target.is_public) {
-          return textResult("公开主页不存在或未开启");
+          return textResult("Public page not found or not enabled");
         }
         const sessions = listSessionsForUser(target.id);
         return jsonResult({
@@ -184,22 +188,22 @@ function createMcpHandler({
         const action = String(args.action || "status");
         if (action === "revoke") {
           revokeMcpToken(user.id);
-          return textResult("MCP 令牌已作废");
+          return textResult("MCP token revoked");
         }
         if (action === "rotate") {
           const token = issueMcpToken(user.id);
           return jsonResult({
             token,
-            hint: "请把此令牌放到 Authorization: Bearer ...，只显示一次请妥善保存",
+            hint: "Put this token in Authorization: Bearer ... — shown only once, store it securely",
           });
         }
         return jsonResult({
           hasToken: Boolean(user.mcp_token),
-          hint: "使用 action=rotate 生成新令牌",
+          hint: "Use action=rotate to issue a new token",
         });
       }
       default:
-        return textResult(`未知工具: ${name}`);
+        return textResult(`Unknown tool: ${name}`);
     }
   }
 
@@ -208,7 +212,10 @@ function createMcpHandler({
     if (!user) {
       res.status(401).json({
         jsonrpc: "2.0",
-        error: { code: -32001, message: "Unauthorized: Bearer JWT 或 MCP Token" },
+        error: {
+          code: -32001,
+          message: "Unauthorized: Bearer JWT or MCP Token required",
+        },
         id: body?.id ?? null,
       });
       return;
@@ -255,7 +262,7 @@ function createMcpHandler({
         res.json({
           jsonrpc: "2.0",
           id,
-          result: textResult(`工具执行失败: ${err.message || err}`),
+          result: textResult(`Tool failed: ${err.message || err}`),
           isError: true,
         });
       }

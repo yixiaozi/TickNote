@@ -1,12 +1,13 @@
 ﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TickNote Timeline — 把每一分钟记下来</title>
+    <title data-i18n="landing.title">TickNote Timeline — Capture every minute</title>
     <meta
       name="description"
-      content="TickNote 是轻量桌面时间记录工具：1 分钟循环倒计时、随手笔记、跨设备同步，并支持公开时间线主页。"
+      data-i18n="landing.description"
+      content="TickNote is a lightweight desktop time tracker: 1-minute loop countdown, quick notes, cross-device sync, and optional public timeline pages."
     />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/icon.png" />
@@ -20,42 +21,48 @@
       <div class="site-header-inner">
         <a class="brand" href="/">
           <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
-          <span>TickNote Timeline</span>
+          <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="#features">功能</a>
-          <a href="#how">怎么用</a>
-          <a href="#public">公开主页</a>
-          <a class="btn ghost" href="/login">登录</a>
-          <a class="btn primary" href="/login#register">免费注册</a>
+          <a href="#features" data-i18n="nav.features">Features</a>
+          <a href="#how" data-i18n="nav.how">How it works</a>
+          <a href="#public" data-i18n="nav.public">Public pages</a>
+          <label class="lang-switch" data-i18n-aria="lang.label">
+            <span class="visually-hidden" data-i18n="lang.label">Language</span>
+            <select data-locale-select aria-label="Language">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <a class="btn ghost" href="/login" data-i18n="nav.login">Log in</a>
+          <a class="btn primary" href="/login#register" data-i18n="nav.register">Sign up free</a>
         </nav>
       </div>
     </header>
 
     <section class="hero">
       <div class="hero-copy">
-        <h1>轻量倒计时，<br />把碎片时间收成记录</h1>
-        <p>
-          TickNote 在桌面角落安静跑着 1 分钟循环。写一句备注、看一天分布、多台电脑同步，
-          也可以把统计页公开给同事或朋友。
+        <h1 data-i18n-html="landing.hero_title">A light countdown that<br />turns spare minutes into notes</h1>
+        <p data-i18n="landing.hero_body">
+          TickNote runs quietly in a desktop corner with a 1-minute loop. Jot a note, review your day, sync across machines, or share a public stats page with colleagues and friends.
         </p>
         <div class="hero-actions">
-          <a class="btn primary" href="/login#register">开始使用</a>
-          <a class="btn soft" href="/app">打开控制台</a>
-          <a class="btn ghost" href="#features">了解功能</a>
+          <a class="btn primary" href="/login#register" data-i18n="landing.cta_start">Get started</a>
+          <a class="btn soft" href="/app" data-i18n="landing.cta_app">Open dashboard</a>
+          <a class="btn ghost" href="#features" data-i18n="landing.cta_features">See features</a>
         </div>
         <div class="hero-meta">
           <div>
             <strong id="metaUsers">—</strong>
-            注册用户
+            <span data-i18n="landing.meta_users">registered users</span>
           </div>
           <div>
             <strong id="metaSessions">—</strong>
-            同步记录
+            <span data-i18n="landing.meta_sessions">synced sessions</span>
           </div>
           <div>
             <strong id="metaPublic">—</strong>
-            公开主页
+            <span data-i18n="landing.meta_public">public pages</span>
           </div>
         </div>
       </div>
@@ -63,29 +70,29 @@
       <aside class="hero-card">
         <div class="preview-window">
           <div class="preview-titlebar">
-            <span>时间统计 · 14 点</span>
-            <span>迷 机 固 顶</span>
+            <span data-i18n="landing.preview_title">Time stats · 2 PM</span>
+            <span data-i18n="landing.preview_controls">Min Pin Lock Top</span>
           </div>
           <div class="preview-body">
             <div class="preview-row">
               <span class="muted">14:10→14:19</span>
-              <span class="mins">8.8分</span>
-              <span>又挑了几个界面问题</span>
+              <span class="mins" data-i18n="landing.preview_mins_8_8">8.8 min</span>
+              <span data-i18n="landing.preview_row1_note">Fixed a few UI issues</span>
             </div>
             <div class="preview-row">
               <span class="muted">14:06→14:10</span>
-              <span class="mins">4.5分</span>
-              <span>看了下周报表和进度表</span>
+              <span class="mins" data-i18n="landing.preview_mins_4_5">4.5 min</span>
+              <span data-i18n="landing.preview_row2_note">Reviewed next week’s report</span>
             </div>
             <div class="preview-row">
               <span class="muted">13:58→14:04</span>
-              <span class="mins">6.4分</span>
-              <span>同步到 Timeline 云端</span>
+              <span class="mins" data-i18n="landing.preview_mins_6_4">6.4 min</span>
+              <span data-i18n="landing.preview_row3_note">Synced to Timeline cloud</span>
             </div>
           </div>
         </div>
-        <p class="hint" style="margin: 14px 0 0">
-          桌面端负责记录，网站负责同步、统计与公开主页。
+        <p class="hint" style="margin: 14px 0 0" data-i18n="landing.preview_hint">
+          Desktop records time; the website handles sync, stats, and public pages.
         </p>
       </aside>
     </section>
@@ -93,45 +100,45 @@
     <section class="section" id="features">
       <div class="section-head">
         <div>
-          <h2>为「随手记」做的功能</h2>
-          <p class="sub">不打扰工作流，但关键时够用。</p>
+          <h2 data-i18n="landing.features_title">Built for quick notes</h2>
+          <p class="sub" data-i18n="landing.features_sub">Stays out of your way, but ready when you need it.</p>
         </div>
       </div>
       <div class="feature-grid">
         <article class="feature">
-          <span class="tag">桌面端</span>
-          <h3>1 分钟循环倒计时</h3>
-          <p>每分钟一轮，适合番茄变体、短时专注，或只是提醒自己「这一分钟在做什么」。</p>
+          <span class="tag" data-i18n="landing.tag_desktop">Desktop</span>
+          <h3 data-i18n="landing.f1_title">1-minute loop countdown</h3>
+          <p data-i18n="landing.f1_body">One round per minute—great for Pomodoro variants, short focus, or simply asking “what am I doing this minute?”</p>
         </article>
         <article class="feature">
-          <span class="tag">统计</span>
-          <h3>按小时查看时间线</h3>
-          <p>空白时段可补记或忽略；支持迷你模式、置顶、锁定与透明度调节。</p>
+          <span class="tag" data-i18n="landing.tag_stats">Stats</span>
+          <h3 data-i18n="landing.f2_title">Hourly timeline view</h3>
+          <p data-i18n="landing.f2_body">Fill or skip blank slots; mini mode, always-on-top, lock, and opacity controls included.</p>
         </article>
         <article class="feature">
-          <span class="tag">同步</span>
-          <h3>多设备双向合并</h3>
-          <p>公司电脑与笔记本各自写备注，登录同一账号后自动拉取再推送，冲突按更新时间合并。</p>
+          <span class="tag" data-i18n="landing.tag_sync">Sync</span>
+          <h3 data-i18n="landing.f3_title">Two-way multi-device merge</h3>
+          <p data-i18n="landing.f3_body">Work PC and laptop each keep notes; sign in once and they pull then push, merging by update time.</p>
         </article>
         <article class="feature">
-          <span class="tag">公开</span>
-          <h3>可选公开主页</h3>
-          <p>开启后，访问 <code>/用户名/public</code> 即可查看你愿意公开的统计与近期记录。</p>
+          <span class="tag" data-i18n="landing.tag_public">Public</span>
+          <h3 data-i18n="landing.f4_title">Optional public page</h3>
+          <p data-i18n-html="landing.f4_body">When enabled, visit <code>/username/public</code> to see the stats and recent sessions you choose to share.</p>
         </article>
         <article class="feature">
-          <span class="tag">便携</span>
-          <h3>数据目录自选</h3>
-          <p>首次启动可选数据文件夹，也支持便携安装，方便在多台机器间带走配置。</p>
+          <span class="tag" data-i18n="landing.tag_portable">Portable</span>
+          <h3 data-i18n="landing.f5_title">Choose your data folder</h3>
+          <p data-i18n="landing.f5_body">Pick a data directory on first launch, or use a portable install to carry settings between machines.</p>
         </article>
         <article class="feature">
-          <span class="tag">网页</span>
-          <h3>控制台与设置</h3>
-          <p>网站可看总览图表、设备分布，并设置展示名、简介与是否公开主页。</p>
+          <span class="tag" data-i18n="landing.tag_web">Web</span>
+          <h3 data-i18n="landing.f6_title">Dashboard &amp; settings</h3>
+          <p data-i18n="landing.f6_body">Review charts and device breakdowns on the web, and set display name, bio, and public-page visibility.</p>
         </article>
         <article class="feature">
-          <span class="tag">MCP</span>
-          <h3>给 AI 用的时间线接口</h3>
-          <p>在设置里生成令牌后，可把 <code>/mcp</code> 接到 Cursor 等客户端，查询统计与备注。</p>
+          <span class="tag" data-i18n="landing.tag_mcp">MCP</span>
+          <h3 data-i18n="landing.f7_title">Timeline API for AI</h3>
+          <p data-i18n-html="landing.f7_body">Create a token in Settings, then connect <code>/mcp</code> to Cursor and similar clients to query stats and notes.</p>
         </article>
       </div>
     </section>
@@ -139,22 +146,22 @@
     <section class="section" id="how">
       <div class="section-head">
         <div>
-          <h2>三步开始</h2>
-          <p class="sub">注册账号后，桌面端填入同步地址即可。</p>
+          <h2 data-i18n="landing.how_title">Three steps to start</h2>
+          <p class="sub" data-i18n="landing.how_sub">After signing up, enter the sync URL in the desktop app.</p>
         </div>
       </div>
       <div class="step-grid">
         <article class="step">
-          <h3>1. 注册账号</h3>
-          <p>在本站免费注册，用户名稍后也会用于公开主页地址。</p>
+          <h3 data-i18n="landing.step1_title">1. Create an account</h3>
+          <p data-i18n="landing.step1_body">Sign up free here—your username also becomes your public page path.</p>
         </article>
         <article class="step">
-          <h3>2. 桌面端登录</h3>
-          <p>打开 TickNote → 设置 → 同步，填写服务器地址并登录同一账号。</p>
+          <h3 data-i18n="landing.step2_title">2. Sign in on desktop</h3>
+          <p data-i18n="landing.step2_body">Open TickNote → Settings → Sync, enter the server URL, and log in with the same account.</p>
         </article>
         <article class="step">
-          <h3>3. 需要时公开</h3>
-          <p>在网站「设置」打开公开开关，分享 <code>/你的用户名/public</code>。</p>
+          <h3 data-i18n="landing.step3_title">3. Go public when ready</h3>
+          <p data-i18n-html="landing.step3_body">In website Settings, turn on the public switch and share <code>/your-username/public</code>.</p>
         </article>
       </div>
     </section>
@@ -162,25 +169,26 @@
     <section class="section" id="public">
       <div class="section-head">
         <div>
-          <h2>公开主页示例</h2>
-          <p class="sub">已开启公开的用户会出现在这里（默认关闭，隐私优先）。</p>
+          <h2 data-i18n="landing.public_title">Public page examples</h2>
+          <p class="sub" data-i18n="landing.public_sub">Users who enabled sharing appear here (off by default—privacy first).</p>
         </div>
-        <a class="btn ghost" href="/settings">去设置公开</a>
+        <a class="btn ghost" href="/settings" data-i18n="landing.public_cta">Open public settings</a>
       </div>
       <div id="publicUsers" class="public-grid"></div>
     </section>
 
     <footer class="footer">
-      <div>TickNote Timeline · 时间记录与同步</div>
+      <div data-i18n="landing.footer_tagline">TickNote Timeline · Time tracking &amp; sync</div>
       <div>
-        <a href="/login">登录</a>
+        <a href="/login" data-i18n="nav.login">Log in</a>
         ·
-        <a href="/app">控制台</a>
+        <a href="/app" data-i18n="nav.app">Dashboard</a>
         ·
-        <a href="/settings">设置</a>
+        <a href="/settings" data-i18n="nav.settings">Settings</a>
       </div>
     </footer>
 
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
     <script src="/landing.js"></script>
   </body>

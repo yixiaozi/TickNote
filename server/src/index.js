@@ -18,11 +18,53 @@ const JWT_SECRET =
 const TOKEN_DAYS = Number(process.env.TOKEN_DAYS || 90);
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
+const API_ERRORS = {
+  en: {
+    not_logged_in: "Not logged in",
+    session_expired: "Session expired",
+    username_invalid:
+      "Username must be 2–32 characters (letters, numbers, Chinese, . _ -)",
+    password_invalid: "Password must be 6–72 characters",
+    username_taken: "Username is already taken",
+    bad_credentials: "Incorrect username or password",
+    public_not_found: "Public page not found or not enabled",
+    server_error: "Server error",
+  },
+  zh: {
+    not_logged_in: "未登录",
+    session_expired: "登录已失效",
+    username_invalid: "用户名需 2-32 位（字母/数字/中文/._-）",
+    password_invalid: "密码需 6-72 位",
+    username_taken: "用户名已被占用",
+    bad_credentials: "用户名或密码错误",
+    public_not_found: "公开主页不存在或未开启",
+    server_error: "服务器错误",
+  },
+};
+
 const app = express();
 app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.static(PUBLIC_DIR));
+
+function requestLocale(req) {
+  const header =
+    req.headers["x-ticknote-locale"] ||
+    req.headers["accept-language"] ||
+    "en";
+  const raw = String(header).toLowerCase();
+  return raw.startsWith("zh") ? "zh" : "en";
+}
+
+function apiError(req, key) {
+  const locale = requestLocale(req);
+  const dict = API_ERRORS[locale] || API_ERRORS.en;
+  return {
+    error: dict[key] || API_ERRORS.en[key] || key,
+    errorKey: key,
+  };
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -91,9 +133,9 @@ function getUserFromAuthJwt(token) {
 function authRequired(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token) return res.status(401).json({ error: "未登录" });
+  if (!token) return res.status(401).json(apiError(req, "not_logged_in"));
   const user = getUserFromAuthJwt(token) || getUserByMcpToken(token);
-  if (!user) return res.status(401).json({ error: "登录已失效" });
+  if (!user) return res.status(401).json(apiError(req, "session_expired"));
   req.user = user;
   next();
 }
@@ -235,13 +277,13 @@ app.post("/api/auth/register", (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
   if (!/^[a-zA-Z0-9_\u4e00-\u9fff.-]{2,32}$/.test(username)) {
-    return res.status(400).json({ error: "用户名需 2-32 位（字母/数字/中文/._-）" });
+    return res.status(400).json(apiError(req, "username_invalid"));
   }
   if (password.length < 6 || password.length > 72) {
-    return res.status(400).json({ error: "密码需 6-72 位" });
+    return res.status(400).json(apiError(req, "password_invalid"));
   }
   if (getUserByUsername(username)) {
-    return res.status(409).json({ error: "用户名已被占用" });
+    return res.status(409).json(apiError(req, "username_taken"));
   }
   const createdAt = nowIso();
   const info = db
@@ -262,7 +304,7 @@ app.post("/api/auth/login", (req, res) => {
   const password = String(req.body?.password || "");
   const row = getUserByUsername(username);
   if (!row || !bcrypt.compareSync(password, row.password_hash)) {
-    return res.status(401).json({ error: "用户名或密码错误" });
+    return res.status(401).json(apiError(req, "bad_credentials"));
   }
   const user = getUserById(row.id);
   res.json({
@@ -411,7 +453,7 @@ app.get("/api/stats/summary", authRequired, (req, res) => {
 app.get("/api/public/:username", (req, res) => {
   const user = getUserByUsername(String(req.params.username || "").trim());
   if (!user || !user.is_public) {
-    return res.status(404).json({ error: "公开主页不存在或未开启" });
+    return res.status(404).json(apiError(req, "public_not_found"));
   }
   const sessions = listSessionsForUser(user.id);
   res.json({
@@ -460,9 +502,9 @@ app.use((req, res, next) => {
   sendPage(res, "index.html");
 });
 
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: "服务器错误" });
+  res.status(500).json(apiError(req, "server_error"));
 });
 
 app.listen(PORT, HOST, () => {

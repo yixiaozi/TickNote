@@ -13,15 +13,15 @@ function preferRegister() {
 
 function syncModeUi() {
   if (preferRegister()) {
-    authTitle.textContent = "注册";
-    authSub.textContent = "创建账号后即可在桌面端登录同步，并设置公开主页。";
-    loginBtn.textContent = "创建账号";
-    registerBtn.textContent = "已有账号？去登录";
+    authTitle.textContent = t("login.register_heading");
+    authSub.textContent = t("login.register_sub");
+    loginBtn.textContent = t("login.create");
+    registerBtn.textContent = t("login.to_login");
   } else {
-    authTitle.textContent = "登录";
-    authSub.textContent = "登录后可查看同步统计，并管理公开主页。";
-    loginBtn.textContent = "登录";
-    registerBtn.textContent = "注册账号";
+    authTitle.textContent = t("login.heading");
+    authSub.textContent = t("login.sub");
+    loginBtn.textContent = t("login.submit");
+    registerBtn.textContent = t("login.register_btn");
   }
 }
 
@@ -63,8 +63,13 @@ registerBtn.addEventListener("click", () => {
 });
 
 window.addEventListener("hashchange", syncModeUi);
+window.addEventListener("ticknote:localechange", () => {
+  if (window.TickNoteI18n) window.TickNoteI18n.applyI18n();
+  syncModeUi();
+});
 
 (async () => {
+  if (window.TickNoteI18n) window.TickNoteI18n.applyI18n();
   syncModeUi();
   if (!getToken()) return;
   try {

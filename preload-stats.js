@@ -35,4 +35,12 @@ contextBridge.exposeInMainWorld("statsApi", {
     ipcRenderer.on("stats:data", listener);
     return () => ipcRenderer.removeListener("stats:data", listener);
   },
+  getLocale() {
+    return ipcRenderer.invoke("app:get-locale");
+  },
+  onLocaleChange(callback) {
+    const listener = (_event, locale) => callback(locale);
+    ipcRenderer.on("app:locale", listener);
+    return () => ipcRenderer.removeListener("app:locale", listener);
+  },
 });

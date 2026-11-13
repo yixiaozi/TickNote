@@ -1,3 +1,5 @@
+const { t, applyI18n, setLocale } = window.TickNoteI18n;
+
 const DURATION_MS = 60_000;
 const CIRCUMFERENCE = 2 * Math.PI * 42;
 
@@ -26,6 +28,14 @@ let tickSoundEnabled = true;
 let resetting = false;
 let lastDraftSaveAt = 0;
 const SLEEP_GAP_MS = 2500;
+
+function applyLocale(locale) {
+  setLocale(locale || "en");
+  applyI18n();
+  renderTickButton();
+  const label = timeEl?.textContent || "1:00";
+  updateTray(label, completedLoops);
+}
 
 function ensureAudio() {
   if (!audioCtx) {
@@ -93,7 +103,9 @@ function playAlertCue(remainingSec) {
 
 function updateTray(timeLabel, loops) {
   if (window.countdownApi?.setTrayLabel) {
-    window.countdownApi.setTrayLabel(`${timeLabel} · 第${loops}轮`);
+    window.countdownApi.setTrayLabel(
+      t("main.tray_label", { time: timeLabel, loops })
+    );
   }
 }
 
@@ -126,7 +138,7 @@ function buildDraftPayload() {
       10
   );
   return {
-    note: noteInput.value.trim() || "未命名",
+    note: noteInput.value.trim() || t("common.unnamed"),
     rounds: completedLoops,
     minutes,
     startedAt: sessionStartedAt.toISOString(),
@@ -286,7 +298,8 @@ function syncNoteInputHeight() {
 function renderTickButton() {
   if (!tickBtn) return;
   tickBtn.classList.toggle("on", tickSoundEnabled);
-  tickBtn.title = tickSoundEnabled ? "滴答声：开" : "滴答声：关";
+  tickBtn.title = tickSoundEnabled ? t("main.tick_on") : t("main.tick_off");
+  tickBtn.setAttribute("aria-label", t("main.tick_toggle"));
 }
 
 noteInput.addEventListener("keydown", (event) => {
@@ -346,6 +359,16 @@ if (window.countdownApi?.onTickSoundChange) {
     renderTickButton();
     if (enabled) ensureAudio();
   });
+}
+
+if (window.countdownApi?.onLocaleChange) {
+  window.countdownApi.onLocaleChange((locale) => applyLocale(locale));
+}
+
+if (window.countdownApi?.getLocale) {
+  window.countdownApi.getLocale().then((locale) => applyLocale(locale));
+} else {
+  applyLocale("en");
 }
 
 if (window.countdownApi?.getTickSoundEnabled) {

@@ -16,4 +16,14 @@ contextBridge.exposeInMainWorld("aboutApi", {
   close() {
     ipcRenderer.send("about:close");
   },
+  onLocaleChange(callback) {
+    const listener = (_event, locale) => callback(locale);
+    ipcRenderer.on("app:locale", listener);
+    return () => ipcRenderer.removeListener("app:locale", listener);
+  },
+  onChanged(callback) {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("settings:changed", listener);
+    return () => ipcRenderer.removeListener("settings:changed", listener);
+  },
 });

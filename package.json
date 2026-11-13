@@ -19,7 +19,9 @@
     },
     "files": [
       "main.js",
+      "i18n.js",
       "sync-account.js",
+      "mcp-local.js",
       "preload.js",
       "preload-stats.js",
       "preload-settings.js",

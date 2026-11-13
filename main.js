@@ -17,6 +17,11 @@ const {
   createAccountClient,
   mergeSessions,
 } = require("./sync-account");
+const {
+  createLocalMcpServer,
+  newLocalMcpToken,
+} = require("./mcp-local");
+const { t, setLocale, normalizeLocale } = require("./i18n");
 
 const ABOUT_GITHUB = "https://github.com/yixiaozi";
 const ABOUT_WEBSITE = "https://wangyang.wiki/";
@@ -49,6 +54,16 @@ let accountToken = "";
 let accountUsername = "";
 /** @type {string} */
 let syncApiBase = DEFAULT_API_BASE;
+let mcpEnabled = false;
+let mcpPort = 3927;
+/** @type {string} */
+let mcpToken = "";
+/** @type {string} */
+let mcpLastError = "";
+/** @type {"en" | "zh"} */
+let appLocale = "en";
+/** @type {ReturnType<typeof createLocalMcpServer> | null} */
+let localMcp = null;
 /** @type {string | null} */
 let lastSyncAt = null;
 /** @type {string[]} */
@@ -60,6 +75,7 @@ let aboutWindow = null;
 
 const accountApi = createAccountClient(() => ({
   apiBase: syncApiBase,
+  locale: appLocale,
   token: accountToken,
 }));
 
@@ -176,11 +192,14 @@ async function ensureDataDirectoryConfigured() {
   const defaultDir = path.join(app.getPath("documents"), "TickNote");
   const result = await dialog.showMessageBox({
     type: "question",
-    title: "选择数据存放位置",
-    message: "首次使用 TickNote，请选择数据存放位置",
-    detail:
-      "统计记录、设置和草稿都会保存在这个文件夹。\n之后也可在托盘菜单中更改。",
-    buttons: ["选择文件夹", "使用默认位置", "取消"],
+    title: t("dialog.data_first_title"),
+    message: t("dialog.data_first_msg"),
+    detail: t("dialog.data_first_detail"),
+    buttons: [
+      t("dialog.data_pick"),
+      t("dialog.data_default"),
+      t("dialog.data_cancel"),
+    ],
     defaultId: 0,
     cancelId: 2,
   });
@@ -188,7 +207,7 @@ async function ensureDataDirectoryConfigured() {
   let target = defaultDir;
   if (result.response === 0) {
     const picked = await dialog.showOpenDialog({
-      title: "选择 TickNote 数据文件夹",
+      title: t("dialog.data_folder_title"),
       defaultPath: defaultDir,
       properties: ["openDirectory", "createDirectory"],
     });
@@ -204,7 +223,7 @@ async function ensureDataDirectoryConfigured() {
 async function changeDataDirectory() {
   const current = getDataDir();
   const picked = await dialog.showOpenDialog({
-    title: "选择新的数据存放位置",
+    title: t("dialog.data_new_title"),
     defaultPath: current,
     properties: ["openDirectory", "createDirectory"],
   });
@@ -215,10 +234,14 @@ async function changeDataDirectory() {
 
   const migrate = await dialog.showMessageBox({
     type: "question",
-    title: "迁移数据",
-    message: "是否把现有数据复制到新位置？",
-    detail: `当前：${current}\n新位置：${next}`,
-    buttons: ["复制并切换", "仅切换（不复制）", "取消"],
+    title: t("dialog.migrate_title"),
+    message: t("dialog.migrate_msg"),
+    detail: t("dialog.migrate_detail", { current, next }),
+    buttons: [
+      t("dialog.migrate_copy"),
+      t("dialog.migrate_switch"),
+      t("dialog.data_cancel"),
+    ],
     defaultId: 0,
     cancelId: 2,
   });
@@ -235,10 +258,10 @@ async function changeDataDirectory() {
   broadcastSettings();
   dialog.showMessageBox({
     type: "info",
-    title: "已更新",
-    message: "数据目录已更改",
+    title: t("dialog.updated_title"),
+    message: t("dialog.updated_msg"),
     detail: next,
-    buttons: ["好的"],
+    buttons: [t("common.ok")],
   });
 }
 const statsPrefs = {
@@ -273,7 +296,7 @@ function writeJson(filePath, data) {
 }
 
 function defaultMachineName() {
-  return (os.hostname() || "本机").trim() || "本机";
+  return (os.hostname() || t("common.local_machine")).trim() || t("common.local_machine");
 }
 
 function getDeviceLabel() {
@@ -302,6 +325,22 @@ function loadSettings() {
   }
   if (typeof data.lastSyncAt === "string") {
     lastSyncAt = data.lastSyncAt;
+  }
+  if (typeof data.mcpEnabled === "boolean") {
+    mcpEnabled = data.mcpEnabled;
+  }
+  if (typeof data.mcpPort === "number" && data.mcpPort > 0 && data.mcpPort < 65536) {
+    mcpPort = Math.floor(data.mcpPort);
+  }
+  if (typeof data.mcpToken === "string") {
+    mcpToken = data.mcpToken;
+  }
+  if (typeof data.locale === "string") {
+    appLocale = normalizeLocale(data.locale);
+    setLocale(appLocale);
+  } else {
+    appLocale = "en";
+    setLocale("en");
   }
   if (Array.isArray(data.dismissedGaps)) {
     dismissedGaps = data.dismissedGaps.map(String).slice(0, 2000);
@@ -354,6 +393,10 @@ function saveSettings() {
       accountUsername,
       syncApiBase,
       lastSyncAt,
+      mcpEnabled,
+      mcpPort,
+      mcpToken,
+      locale: appLocale || "en",
       dismissedGaps,
       stats: { ...statsPrefs },
     });
@@ -430,8 +473,8 @@ function promptText({ title, message, defaultValue }) {
   <p id="msg"></p>
   <input id="value" spellcheck="false" />
   <div class="actions">
-    <button class="cancel" id="cancel" type="button">取消</button>
-    <button class="ok" id="ok" type="button">确定</button>
+    <button class="cancel" id="cancel" type="button">${t("common.cancel")}</button>
+    <button class="ok" id="ok" type="button">${t("common.ok")}</button>
   </div>
   <script>
     const { ipcRenderer } = require("electron");
@@ -494,8 +537,8 @@ async function changeMachineName() {
   const oldName = current;
   const oldLabel = getDeviceLabel();
   const next = await promptText({
-    title: "设置机器名",
-    message: "用于区分哪台电脑写下的记录（保存为「机器名 · TickNote」）",
+    title: t("dialog.machine_title"),
+    message: t("dialog.machine_msg"),
     defaultValue: current,
   });
   if (next === null) return;
@@ -547,10 +590,10 @@ function promptCredentials({ title, submitLabel }) {
   .ok{background:#3d6fd8;color:#fff}
 </style></head><body>
   <h1>${title.replace(/[<>&]/g, "")}</h1>
-  <label>用户名<input id="username" spellcheck="false" /></label>
-  <label>密码<input id="password" type="password" /></label>
+  <label>${t("dialog.auth_username")}<input id="username" spellcheck="false" /></label>
+  <label>${t("dialog.auth_password")}<input id="password" type="password" /></label>
   <div class="actions">
-    <button class="cancel" id="cancel" type="button">取消</button>
+    <button class="cancel" id="cancel" type="button">${t("common.cancel")}</button>
     <button class="ok" id="ok" type="button">${submitLabel}</button>
   </div>
   <script>
@@ -591,14 +634,21 @@ function promptCredentials({ title, submitLabel }) {
 
 async function accountLoginOrRegister(mode) {
   const creds = await promptCredentials({
-    title: mode === "register" ? "注册 TickNote 账号" : "登录 TickNote 账号",
-    submitLabel: mode === "register" ? "注册" : "登录",
+    title:
+      mode === "register" ? t("dialog.auth_register") : t("dialog.auth_login"),
+    submitLabel:
+      mode === "register"
+        ? t("dialog.auth_register_btn")
+        : t("dialog.auth_login_btn"),
   });
   if (!creds) return;
   const username = String(creds.username || "").trim();
   const password = String(creds.password || "");
   if (!username || password.length < 6) {
-    dialog.showErrorBox("无法继续", "请填写用户名，密码至少 6 位");
+    dialog.showErrorBox(
+      t("dialog.auth_need_continue"),
+      t("dialog.auth_need_fields")
+    );
     return;
   }
   try {
@@ -614,7 +664,9 @@ async function accountLoginOrRegister(mode) {
     await syncNow({ quiet: true });
   } catch (err) {
     dialog.showErrorBox(
-      mode === "register" ? "注册失败" : "登录失败",
+      mode === "register"
+        ? t("dialog.auth_fail_register")
+        : t("dialog.auth_fail_login"),
       err.message || String(err)
     );
     throw err;
@@ -631,14 +683,59 @@ function logoutAccount() {
 }
 
 function formatLastSyncLabel() {
-  if (!lastSyncAt) return "上次同步：尚未同步";
+  if (!lastSyncAt) {
+    return `${t("settings.last_sync_prefix")}${t("settings.last_sync_never")}`;
+  }
   const d = new Date(lastSyncAt);
-  if (Number.isNaN(d.getTime())) return "上次同步：—";
+  if (Number.isNaN(d.getTime())) {
+    return `${t("settings.last_sync_prefix")}${t("common.dash")}`;
+  }
   const p = (n) => String(n).padStart(2, "0");
-  return `上次同步：${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return `${t("settings.last_sync_prefix")}${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function ensureLocalMcp() {
+  if (localMcp) return localMcp;
+  localMcp = createLocalMcpServer({
+    port: mcpPort,
+    getSessions: () => loadSessions(),
+    getToken: () => mcpToken,
+    getInfo: () => ({
+      app: APP_DISPLAY_NAME,
+      machineName: machineName || defaultMachineName(),
+      deviceLabel: getDeviceLabel(),
+      dataDir: getDataDir(),
+      accountUsername: accountUsername || "",
+      syncApiBase: syncApiBase || DEFAULT_API_BASE,
+    }),
+  });
+  return localMcp;
+}
+
+async function syncLocalMcpServer() {
+  const mcp = ensureLocalMcp();
+  if (!mcpEnabled) {
+    await mcp.stop();
+    mcpLastError = "";
+    return mcp.status();
+  }
+  try {
+    await mcp.start(mcpPort);
+    mcpLastError = "";
+  } catch (err) {
+    mcpLastError = err?.message || String(err);
+    try {
+      await mcp.stop();
+    } catch {
+      // ignore
+    }
+    throw err;
+  }
+  return mcp.status();
 }
 
 function getSettingsPayload() {
+  const mcpStatus = localMcp ? localMcp.status() : { running: false, port: mcpPort, url: "" };
   return {
     syncApiBase: syncApiBase || DEFAULT_API_BASE,
     machineName: machineName || defaultMachineName(),
@@ -646,6 +743,14 @@ function getSettingsPayload() {
     accountUsername,
     lastSyncAt,
     lastSyncLabel: formatLastSyncLabel(),
+    mcpEnabled,
+    mcpPort,
+    mcpHasToken: Boolean(mcpToken),
+    mcpTokenPreview: mcpToken ? `${mcpToken.slice(0, 8)}…` : "",
+    mcpRunning: Boolean(mcpStatus.running),
+    mcpLastError,
+    locale: appLocale || "en",
+    mcpUrl: mcpStatus.url || `http://127.0.0.1:${mcpPort}/mcp`,
   };
 }
 
@@ -653,6 +758,23 @@ function broadcastSettings() {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.webContents.send("settings:changed", getSettingsPayload());
   }
+}
+
+function broadcastLocale() {
+  const locale = appLocale || "en";
+  setLocale(locale);
+  for (const win of [mainWindow, statsWindow, settingsWindow, aboutWindow]) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("app:locale", locale);
+    }
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send("settings:changed", getSettingsPayload());
+  }
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    aboutWindow.webContents.send("about:locale", locale);
+  }
+  refreshTrayMenu();
 }
 
 async function pushLocalSessions() {
@@ -668,8 +790,9 @@ async function pullRemoteSessions() {
   if (!accountToken) return;
   const payload = await accountApi.pull();
   const merged = mergeSessions(loadSessions(), payload.sessions || []);
-  saveSessions(merged);
-  broadcastSessions(merged);
+  const adjacent = mergeAdjacentIdenticalSessions(merged);
+  saveSessions(adjacent.sessions);
+  broadcastSessions(adjacent.sessions);
   lastSyncAt = payload.serverTime || new Date().toISOString();
   saveSettings();
 }
@@ -679,9 +802,9 @@ async function syncNow({ quiet = true } = {}) {
     if (!quiet) {
       dialog.showMessageBox({
         type: "info",
-        title: "尚未登录",
-        message: "请先注册或登录后再同步",
-        buttons: ["好的"],
+        title: t("dialog.sync_need_login_title"),
+        message: t("dialog.sync_need_login_msg"),
+        buttons: [t("common.ok")],
       });
     }
     return;
@@ -697,15 +820,15 @@ async function syncNow({ quiet = true } = {}) {
     if (!quiet) {
       dialog.showMessageBox({
         type: "info",
-        title: "同步完成",
-        message: "已双向同步：拉取其他设备数据并上传本机记录",
+        title: t("dialog.sync_ok_title"),
+        message: t("dialog.sync_ok_msg"),
         detail: syncApiBase || TIMELINE_URL,
-        buttons: ["好的"],
+        buttons: [t("common.ok")],
       });
     }
   } catch (err) {
     if (!quiet) {
-      dialog.showErrorBox("同步失败", err.message || String(err));
+      dialog.showErrorBox(t("dialog.sync_fail"), err.message || String(err));
     }
     throw err;
   }
@@ -890,6 +1013,106 @@ function saveSessions(sessions) {
   writeJson(SESSIONS_PATH(), sessions);
 }
 
+const ADJACENT_MERGE_MS = 5000;
+
+function noteMergeKey(note) {
+  const n = String(note || "").trim();
+  if (!n || n === "未命名" || n === "Untitled") return "";
+  return n;
+}
+
+function sessionRangeMs(session) {
+  const start = new Date(session.startedAt || session.endedAt || 0).getTime();
+  const end = new Date(session.endedAt || session.startedAt || 0).getTime();
+  return {
+    start: Number.isNaN(start) ? 0 : start,
+    end: Number.isNaN(end) ? 0 : end,
+  };
+}
+
+/** Merge back-to-back sessions with the same note (and device when both set). */
+function mergeAdjacentIdenticalSessions(sessions) {
+  if (!Array.isArray(sessions) || sessions.length < 2) {
+    return { sessions: sessions || [], changed: false };
+  }
+
+  const ordered = [...sessions].sort((a, b) => {
+    const ra = sessionRangeMs(a);
+    const rb = sessionRangeMs(b);
+    if (ra.start !== rb.start) return ra.start - rb.start;
+    return ra.end - rb.end;
+  });
+
+  const absorbed = new Set();
+  const kept = [];
+  let changed = false;
+
+  for (let i = 0; i < ordered.length; i += 1) {
+    const seed = ordered[i];
+    if (!seed || absorbed.has(seed.id)) continue;
+
+    let cur = { ...seed };
+    let { start: curStart, end: curEnd } = sessionRangeMs(cur);
+    let key = noteMergeKey(cur.note);
+    let device = String(cur.device || "").trim();
+    let grew = true;
+
+    while (grew) {
+      grew = false;
+      for (let j = 0; j < ordered.length; j += 1) {
+        const other = ordered[j];
+        if (!other || absorbed.has(other.id) || other.id === cur.id) continue;
+        if (noteMergeKey(other.note) !== key) continue;
+        const otherDevice = String(other.device || "").trim();
+        if (device && otherDevice && device !== otherDevice) continue;
+
+        const { start: oStart, end: oEnd } = sessionRangeMs(other);
+        const abuts =
+          Math.abs(oStart - curEnd) <= ADJACENT_MERGE_MS ||
+          Math.abs(curStart - oEnd) <= ADJACENT_MERGE_MS;
+        if (!abuts) continue;
+
+        const newStart = Math.min(curStart, oStart);
+        const newEnd = Math.max(curEnd, oEnd);
+        const startedAt = new Date(newStart).toISOString();
+        const endedAt = new Date(newEnd).toISOString();
+        cur = {
+          ...cur,
+          note: cur.note || other.note || "",
+          startedAt,
+          endedAt,
+          minutes: minutesFromRange(
+            startedAt,
+            endedAt,
+            (Number(cur.minutes) || 0) + (Number(other.minutes) || 0)
+          ),
+          rounds:
+            Math.max(0, Number(cur.rounds) || 0) +
+            Math.max(0, Number(other.rounds) || 0),
+          device: device || otherDevice,
+          updatedAt: new Date().toISOString(),
+        };
+        absorbed.add(other.id);
+        curStart = newStart;
+        curEnd = newEnd;
+        if (!device && otherDevice) device = otherDevice;
+        changed = true;
+        grew = true;
+      }
+    }
+
+    kept.push(cur);
+  }
+
+  kept.sort((a, b) => {
+    const ta = sessionRangeMs(a).end;
+    const tb = sessionRangeMs(b).end;
+    return tb - ta;
+  });
+
+  return { sessions: kept, changed };
+}
+
 /** Recompute minutes from start/end so history matches the time range. */
 function repairSessionDurations() {
   const sessions = loadSessions();
@@ -912,10 +1135,11 @@ function repairSessionDurations() {
       updatedAt: now,
     };
   });
-  if (changed) {
-    saveSessions(next);
+  const merged = mergeAdjacentIdenticalSessions(next);
+  if (changed || merged.changed) {
+    saveSessions(merged.sessions);
   }
-  return next;
+  return merged.sessions;
 }
 
 function loadDraft() {
@@ -951,7 +1175,7 @@ function normalizeSession(session, existingId) {
   const minutes = minutesFromRange(startedAt, endedAt, session.minutes);
   return {
     id: existingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    note: String(session.note || "").trim() || "未命名",
+    note: String(session.note || "").trim() || t("common.unnamed"),
     rounds: Math.max(0, Number(session.rounds) || 0),
     minutes,
     device,
@@ -999,8 +1223,8 @@ function openSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 460,
-    height: 560,
+    width: 520,
+    height: 640,
     frame: false,
     resizable: false,
     maximizable: false,
@@ -1008,8 +1232,8 @@ function openSettingsWindow() {
     skipTaskbar: true,
     show: false,
     center: true,
-    backgroundColor: "#12161c",
-    title: "TickNote 设置",
+    backgroundColor: "#0f141b",
+    title: t("settings.title"),
     webPreferences: {
       preload: path.join(__dirname, "preload-settings.js"),
       contextIsolation: true,
@@ -1080,7 +1304,7 @@ function openStatsWindow() {
     skipTaskbar: true,
     show: false,
     autoHideMenuBar: true,
-    title: "TickNote 统计",
+    title: t("stats.title"),
     backgroundColor: "#12161c",
     webPreferences: {
       preload: path.join(__dirname, "preload-stats.js"),
@@ -1149,7 +1373,7 @@ function showAboutDialog() {
     show: false,
     center: true,
     backgroundColor: "#00000000",
-    title: "关于 TickNote",
+    title: t("about.title"),
     webPreferences: {
       preload: path.join(__dirname, "preload-about.js"),
       contextIsolation: true,
@@ -1175,7 +1399,7 @@ function showAboutDialog() {
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
     {
-      label: "显示窗口",
+      label: t("tray.show"),
       click: () => {
         if (!mainWindow) return;
         mainWindow.show();
@@ -1183,14 +1407,14 @@ function buildTrayMenu() {
       },
     },
     {
-      label: "隐藏窗口",
+      label: t("tray.hide"),
       click: () => {
         mainWindow?.hide();
       },
     },
     { type: "separator" },
     {
-      label: "每秒滴答声",
+      label: t("tray.tick"),
       type: "checkbox",
       checked: tickSoundEnabled,
       click: (item) => {
@@ -1200,15 +1424,15 @@ function buildTrayMenu() {
       },
     },
     {
-      label: "查看统计",
+      label: t("tray.stats"),
       click: () => openStatsWindow(),
     },
     {
-      label: "设置…",
+      label: t("tray.settings"),
       click: () => openSettingsWindow(),
     },
     {
-      label: "重置轮次与计时",
+      label: t("tray.reset"),
       click: () => {
         sendToRenderer("countdown:reset");
       },
@@ -1216,8 +1440,8 @@ function buildTrayMenu() {
     { type: "separator" },
     {
       label: accountUsername
-        ? `账号: ${accountUsername}`
-        : "账号: 未登录",
+        ? t("tray.account_user", { name: accountUsername })
+        : t("tray.account_none"),
       enabled: false,
     },
     {
@@ -1227,7 +1451,7 @@ function buildTrayMenu() {
     ...(accountToken
       ? [
           {
-            label: "立即同步",
+            label: t("tray.sync_now"),
             click: () => {
               syncNow({ quiet: false }).catch(() => {});
             },
@@ -1235,20 +1459,20 @@ function buildTrayMenu() {
         ]
       : []),
     {
-      label: "打开同步网站",
+      label: t("tray.open_site"),
       click: () => {
         shell.openExternal(syncApiBase || TIMELINE_URL);
       },
     },
     { type: "separator" },
     {
-      label: "关于 TickNote",
+      label: t("tray.about"),
       click: () => {
         showAboutDialog();
       },
     },
     {
-      label: "退出",
+      label: t("tray.quit"),
       click: () => {
         if (mainWindow) {
           mainWindow.setClosable(true);
@@ -1449,11 +1673,12 @@ ipcMain.handle("sessions:add", (_event, session) => {
 
   const sessions = loadSessions();
   sessions.unshift(normalizeSession(session));
-  saveSessions(sessions);
+  const merged = mergeAdjacentIdenticalSessions(sessions);
+  saveSessions(merged.sessions);
   clearDraft();
-  broadcastSessions(sessions, { force: true });
+  broadcastSessions(merged.sessions, { force: true });
   syncNow({ quiet: true }).catch(() => {});
-  return sessions;
+  return merged.sessions;
 });
 
 ipcMain.handle("sessions:update", (_event, payload) => {
@@ -1498,7 +1723,7 @@ ipcMain.handle("sessions:save-draft", (_event, draft) => {
     return false;
   }
   saveDraft({
-    note: String(draft.note || "").trim() || "未命名",
+    note: String(draft.note || "").trim() || t("common.unnamed"),
     rounds: Math.max(0, Number(draft.rounds) || 0),
     minutes: Math.max(0, Number(draft.minutes) || 0),
     startedAt: draft.startedAt || null,
@@ -1534,11 +1759,11 @@ ipcMain.handle("settings:save", async (_event, patch) => {
       try {
         const url = new URL(next);
         if (!/^https?:$/.test(url.protocol)) {
-          throw new Error("同步地址需以 http:// 或 https:// 开头");
+          throw new Error(t("dialog.bad_sync_url"));
         }
         syncApiBase = url.origin + (url.pathname === "/" ? "" : url.pathname);
       } catch (err) {
-        throw new Error(err.message || "同步地址无效");
+        throw new Error(err.message || t("dialog.bad_sync_url_generic"));
       }
     } else {
       syncApiBase = DEFAULT_API_BASE;
@@ -1558,6 +1783,15 @@ ipcMain.handle("settings:save", async (_event, patch) => {
         `${defaultMachineName()} · ${APP_DISPLAY_NAME}`,
         newLabel
       );
+    }
+  }
+
+  if (typeof patch.locale === "string") {
+    const nextLocale = normalizeLocale(patch.locale);
+    if (nextLocale !== appLocale) {
+      appLocale = nextLocale;
+      setLocale(appLocale);
+      broadcastLocale();
     }
   }
 
@@ -1599,14 +1833,61 @@ ipcMain.handle("settings:open-data-dir", async () => {
   return true;
 });
 
+ipcMain.handle("settings:mcp-save", async (_event, patch) => {
+  if (!patch || typeof patch !== "object") return getSettingsPayload();
+  if (typeof patch.enabled === "boolean") mcpEnabled = patch.enabled;
+  if (typeof patch.port === "number" && patch.port > 1023 && patch.port < 65536) {
+    mcpPort = Math.floor(patch.port);
+  }
+  saveSettings();
+  try {
+    await syncLocalMcpServer();
+  } catch (err) {
+    throw new Error(t("dialog.mcp_start_fail", { err: err.message || err }));
+  }
+  broadcastSettings();
+  return getSettingsPayload();
+});
+
+ipcMain.handle("settings:mcp-rotate-token", async () => {
+  mcpToken = newLocalMcpToken();
+  saveSettings();
+  if (mcpEnabled) {
+    try {
+      await syncLocalMcpServer();
+    } catch {
+      // keep token even if restart fails
+    }
+  }
+  broadcastSettings();
+  return { ...getSettingsPayload(), mcpToken };
+});
+
+ipcMain.handle("settings:mcp-revoke-token", async () => {
+  mcpToken = "";
+  saveSettings();
+  if (mcpEnabled) {
+    try {
+      await syncLocalMcpServer();
+    } catch {
+      // ignore
+    }
+  }
+  broadcastSettings();
+  return getSettingsPayload();
+});
+
 ipcMain.on("settings:close", () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.close();
   }
 });
 
+ipcMain.handle("app:get-locale", () => appLocale || "en");
+
 ipcMain.handle("about:get-info", () => ({
   version: app.getVersion(),
+  locale: appLocale || "en",
 }));
 
 ipcMain.on("about:open-github", () => {
@@ -1657,6 +1938,9 @@ if (!gotLock) {
     createWindow();
     createTray();
     startSyncTimer();
+    syncLocalMcpServer().catch((err) => {
+      mcpLastError = err?.message || String(err);
+    });
     if (accountToken) {
       syncNow({ quiet: true }).catch(() => {});
     }
@@ -1679,5 +1963,8 @@ app.on("before-quit", () => {
   sendToRenderer("countdown:flush-draft");
   if (mainWindow) {
     mainWindow.setClosable(true);
+  }
+  if (localMcp) {
+    localMcp.stop().catch(() => {});
   }
 });

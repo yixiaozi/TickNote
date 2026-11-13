@@ -19,14 +19,17 @@ async function loadPublicUsers() {
     const data = await api("/api/public-users");
     const users = data.users || [];
     if (!users.length) {
-      box.innerHTML =
-        `<article class="feature"><h3>还没有公开主页</h3><p>登录后到「设置」打开公开开关，你的主页会出现在这里。</p></article>`;
+      box.innerHTML = `<article class="feature"><h3>${escapeHtml(
+        t("landing.empty_public_title")
+      )}</h3><p>${escapeHtml(t("landing.empty_public_body"))}</p></article>`;
       return;
     }
     box.innerHTML = users
       .map((u) => {
-        const title = u.publicTitle || `${u.displayName} 的时间线`;
-        const bio = u.bio || "这位用户开启了公开时间线。";
+        const title =
+          u.publicTitle ||
+          t("landing.user_timeline", { name: u.displayName });
+        const bio = u.bio || t("landing.user_bio_default");
         return `<a class="feature" href="${escapeHtml(u.publicUrl)}" style="color:inherit;text-decoration:none">
           <span class="tag">@${escapeHtml(u.username)}</span>
           <h3>${escapeHtml(title)}</h3>
@@ -35,9 +38,19 @@ async function loadPublicUsers() {
       })
       .join("");
   } catch {
-    box.innerHTML = `<article class="feature"><h3>暂时无法加载</h3><p>请稍后再试。</p></article>`;
+    box.innerHTML = `<article class="feature"><h3>${escapeHtml(
+      t("landing.load_error_title")
+    )}</h3><p>${escapeHtml(t("landing.load_error_body"))}</p></article>`;
   }
 }
 
-loadMeta();
-loadPublicUsers();
+function refreshLanding() {
+  if (window.TickNoteI18n) {
+    window.TickNoteI18n.applyI18n();
+  }
+  loadMeta();
+  loadPublicUsers();
+}
+
+window.addEventListener("ticknote:localechange", refreshLanding);
+refreshLanding();

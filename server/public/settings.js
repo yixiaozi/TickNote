@@ -19,10 +19,12 @@ const copyMcpBtn = document.getElementById("copyMcpBtn");
 wireLogout(logoutBtn);
 
 let latestMcpToken = "";
+let lastUser = null;
+let lastTokenOnceKey = "";
 
 function mcpSnippet(token) {
   const url = `${location.origin}/mcp`;
-  const auth = token || "<你的 MCP 令牌>";
+  const auth = token || t("settings.mcp_token_placeholder");
   return `{
   "mcpServers": {
     "ticknote-timeline": {
@@ -36,6 +38,7 @@ function mcpSnippet(token) {
 }
 
 function fillForm(user) {
+  lastUser = user;
   usernameEl.value = user.username || "";
   displayNameEl.value = user.displayName || user.username || "";
   bioEl.value = user.bio || "";
@@ -46,9 +49,18 @@ function fillForm(user) {
   publicUrlEl.textContent = url;
   mcpEndpoint.textContent = `${location.origin}/mcp`;
   mcpStatus.textContent = user.hasMcpToken
-    ? "已启用长期 MCP 令牌（令牌本身仅在生成时显示一次）"
-    : "尚未生成长期令牌";
-  mcpConfig.textContent = mcpSnippet(latestMcpToken || (user.hasMcpToken ? undefined : ""));
+    ? t("settings.mcp_enabled")
+    : t("settings.mcp_none");
+  mcpConfig.textContent = mcpSnippet(
+    latestMcpToken || (user.hasMcpToken ? undefined : "")
+  );
+  if (lastTokenOnceKey === "token" && latestMcpToken) {
+    mcpTokenOnce.textContent = t("settings.mcp_token_once", {
+      token: latestMcpToken,
+    });
+  } else if (lastTokenOnceKey === "copied") {
+    mcpTokenOnce.textContent = t("settings.mcp_copied");
+  }
 }
 
 async function bootstrap() {
@@ -87,7 +99,10 @@ rotateMcpBtn.addEventListener("click", async () => {
       body: JSON.stringify({ action: "rotate" }),
     });
     latestMcpToken = data.token || "";
-    mcpTokenOnce.textContent = `新令牌（请立即复制保存）：${latestMcpToken}`;
+    lastTokenOnceKey = "token";
+    mcpTokenOnce.textContent = t("settings.mcp_token_once", {
+      token: latestMcpToken,
+    });
     mcpTokenOnce.classList.remove("hidden");
     fillForm({
       ...(await api("/api/settings")),
@@ -107,6 +122,7 @@ revokeMcpBtn.addEventListener("click", async () => {
       body: JSON.stringify({ action: "revoke" }),
     });
     latestMcpToken = "";
+    lastTokenOnceKey = "";
     mcpTokenOnce.classList.add("hidden");
     fillForm(await api("/api/settings"));
   } catch (err) {
@@ -118,12 +134,18 @@ revokeMcpBtn.addEventListener("click", async () => {
 copyMcpBtn.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(mcpConfig.textContent || "");
-    mcpTokenOnce.textContent = "配置已复制到剪贴板";
+    lastTokenOnceKey = "copied";
+    mcpTokenOnce.textContent = t("settings.mcp_copied");
     mcpTokenOnce.classList.remove("hidden");
   } catch {
-    saveError.textContent = "复制失败，请手动选择文本";
+    saveError.textContent = t("settings.mcp_copy_failed");
     saveError.classList.remove("hidden");
   }
+});
+
+window.addEventListener("ticknote:localechange", () => {
+  if (window.TickNoteI18n) window.TickNoteI18n.applyI18n();
+  if (lastUser) fillForm(lastUser);
 });
 
 bootstrap();

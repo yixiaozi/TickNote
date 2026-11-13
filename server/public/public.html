@@ -1,9 +1,9 @@
 ﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>公开时间线 · TickNote Timeline</title>
+    <title data-i18n="public.title">Public timeline · TickNote Timeline</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,46 +16,54 @@
       <div class="site-header-inner">
         <a class="brand" href="/">
           <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
-          <span>TickNote Timeline</span>
+          <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="/">了解 TickNote</a>
-          <a class="btn soft" href="/login">登录</a>
+          <a href="/" data-i18n="nav.learn">About TickNote</a>
+          <label class="lang-switch" data-i18n-aria="lang.label">
+            <span class="visually-hidden" data-i18n="lang.label">Language</span>
+            <select data-locale-select aria-label="Language">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <a class="btn soft" href="/login" data-i18n="nav.login">Log in</a>
         </nav>
       </div>
     </header>
 
     <main class="page">
       <section id="profileCard" class="public-hero panel">
-        <p class="muted">正在加载公开主页…</p>
+        <p class="muted" data-i18n="public.loading">Loading public page…</p>
       </section>
 
       <section class="cards" id="summaryCards"></section>
 
       <div class="public-grid">
         <section class="panel">
-          <h2>最近按天</h2>
+          <h2 data-i18n="public.days_title">Recent days</h2>
           <div id="dayChart" class="bar-list"></div>
         </section>
         <section class="panel">
-          <h2>小时分布</h2>
+          <h2 data-i18n="public.hours_title">Hourly distribution</h2>
           <div id="hourChart" class="bar-list hour-grid"></div>
         </section>
         <section class="panel">
-          <h2>设备</h2>
+          <h2 data-i18n="public.devices_title">Devices</h2>
           <div id="deviceChart" class="bar-list"></div>
         </section>
       </div>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>近期记录</h2>
+          <h2 data-i18n="public.recent_title">Recent sessions</h2>
           <span id="sessionCount" class="muted"></span>
         </div>
         <div id="sessionList" class="session-list"></div>
       </section>
     </main>
 
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
     <script src="/public.js"></script>
   </body>

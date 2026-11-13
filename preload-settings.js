@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Locale lives in the settings payload as `locale` (get/save).
 contextBridge.exposeInMainWorld("settingsApi", {
   get() {
     return ipcRenderer.invoke("settings:get");
@@ -7,6 +8,12 @@ contextBridge.exposeInMainWorld("settingsApi", {
   save(patch) {
     return ipcRenderer.invoke("settings:save", patch);
   },
+  getLocale() {
+    return ipcRenderer
+      .invoke("settings:get")
+      .then((data) => data?.locale || "en");
+  },
+
   login() {
     return ipcRenderer.invoke("settings:login");
   },
@@ -24,6 +31,15 @@ contextBridge.exposeInMainWorld("settingsApi", {
   },
   openDataDir() {
     return ipcRenderer.invoke("settings:open-data-dir");
+  },
+  mcpSave(patch) {
+    return ipcRenderer.invoke("settings:mcp-save", patch);
+  },
+  mcpRotateToken() {
+    return ipcRenderer.invoke("settings:mcp-rotate-token");
+  },
+  mcpRevokeToken() {
+    return ipcRenderer.invoke("settings:mcp-revoke-token");
   },
   close() {
     ipcRenderer.send("settings:close");

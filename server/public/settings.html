@@ -1,9 +1,9 @@
 ﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>设置 · TickNote Timeline</title>
+    <title data-i18n="settings.title">Settings · TickNote Timeline</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,12 +16,19 @@
       <div class="site-header-inner">
         <a class="brand" href="/">
           <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
-          <span>TickNote Timeline</span>
+          <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="/app">控制台</a>
-          <a href="/settings">设置</a>
-          <button id="logoutBtn" type="button" class="ghost">退出</button>
+          <a href="/app" data-i18n="nav.app">Dashboard</a>
+          <a href="/settings" data-i18n="nav.settings">Settings</a>
+          <label class="lang-switch" data-i18n-aria="lang.label">
+            <span class="visually-hidden" data-i18n="lang.label">Language</span>
+            <select data-locale-select aria-label="Language">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">Log out</button>
         </nav>
       </div>
     </header>
@@ -29,79 +36,99 @@
     <main class="page">
       <header class="topbar">
         <div>
-          <h1>账号设置</h1>
-          <p class="sub">管理展示信息，以及是否公开你的时间线主页。</p>
+          <h1 data-i18n="settings.heading">Account settings</h1>
+          <p class="sub" data-i18n="settings.sub">Manage your profile and whether your timeline page is public.</p>
         </div>
       </header>
 
       <form id="settingsForm" class="settings-card">
-        <h2>基本资料</h2>
+        <h2 data-i18n="settings.language_section">Language</h2>
         <label>
-          用户名
+          <span data-i18n="lang.label">Language</span>
+          <select id="localeSelect" data-locale-select>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+        <p class="hint" data-i18n="settings.language_hint">Applies to the website UI. Saved in this browser.</p>
+
+        <h2 data-i18n="settings.profile">Profile</h2>
+        <label>
+          <span data-i18n="settings.username">Username</span>
           <input id="username" disabled />
         </label>
         <label>
-          显示名称
-          <input id="displayName" maxlength="40" placeholder="例如：小王" />
+          <span data-i18n="settings.display_name">Display name</span>
+          <input
+            id="displayName"
+            maxlength="40"
+            data-i18n-placeholder="settings.display_name_ph"
+            placeholder="e.g. Alex"
+          />
         </label>
         <label>
-          简介
+          <span data-i18n="settings.bio">Bio</span>
           <textarea
             id="bio"
             maxlength="280"
-            placeholder="一句话介绍你在记什么时间"
+            data-i18n-placeholder="settings.bio_ph"
+            placeholder="One line about what you track"
           ></textarea>
         </label>
 
-        <h2 style="margin-top: 8px">公开主页</h2>
+        <h2 style="margin-top: 8px" data-i18n="settings.public_section">Public page</h2>
         <div class="toggle-row">
           <div>
-            <strong>公开我的主页</strong>
-            <span class="hint"
-              >开启后，任何人可通过下方链接查看统计与近期记录。</span
+            <strong data-i18n="settings.public_toggle">Make my page public</strong>
+            <span class="hint" data-i18n="settings.public_toggle_hint"
+              >When on, anyone can view your stats and recent sessions via the link below.</span
             >
           </div>
-          <label class="switch" title="是否公开">
+          <label class="switch" data-i18n-title="settings.public_toggle_title" title="Public visibility">
             <input id="isPublic" type="checkbox" />
             <span></span>
           </label>
         </div>
         <label>
-          公开页标题
+          <span data-i18n="settings.public_title_label">Public page title</span>
           <input
             id="publicTitle"
             maxlength="80"
-            placeholder="例如：小王的工作时间线"
+            data-i18n-placeholder="settings.public_title_ph"
+            placeholder="e.g. Alex’s work timeline"
           />
         </label>
         <p class="hint">
-          公开地址：
+          <span data-i18n="settings.public_url">Public URL:</span>
           <a id="publicUrl" href="#" target="_blank" rel="noopener"></a>
         </p>
 
-        <h2 style="margin-top: 8px">MCP 接入</h2>
+        <h2 style="margin-top: 8px" data-i18n="settings.mcp_section">MCP access</h2>
         <p class="hint">
-          供 Cursor 等 AI 客户端读取你的时间线。端点：
+          <span data-i18n="settings.mcp_hint"
+            >For Cursor and other AI clients to read your timeline. Endpoint:</span
+          >
           <code id="mcpEndpoint"></code>
         </p>
-        <p class="hint" id="mcpStatus">尚未生成长期令牌</p>
+        <p class="hint" id="mcpStatus">No long-lived token yet</p>
         <pre id="mcpConfig" class="hint" style="white-space: pre-wrap; word-break: break-all; background: #10161f; padding: 12px; border-radius: 10px; border: 1px solid var(--line);"></pre>
         <div class="form-actions">
-          <button id="rotateMcpBtn" type="button" class="soft">生成 / 轮换令牌</button>
-          <button id="revokeMcpBtn" type="button" class="ghost">作废令牌</button>
-          <button id="copyMcpBtn" type="button" class="ghost">复制配置</button>
+          <button id="rotateMcpBtn" type="button" class="soft" data-i18n="settings.mcp_rotate">Generate / rotate token</button>
+          <button id="revokeMcpBtn" type="button" class="ghost" data-i18n="settings.mcp_revoke">Revoke token</button>
+          <button id="copyMcpBtn" type="button" class="ghost" data-i18n="settings.mcp_copy">Copy config</button>
         </div>
         <p id="mcpTokenOnce" class="ok hidden"></p>
 
         <p id="saveError" class="error hidden"></p>
-        <p id="saveOk" class="ok hidden">已保存</p>
+        <p id="saveOk" class="ok hidden" data-i18n="settings.saved">Saved</p>
         <div class="form-actions">
-          <button type="submit" class="primary">保存设置</button>
-          <a class="btn ghost" href="/app">返回控制台</a>
+          <button type="submit" class="primary" data-i18n="settings.save">Save settings</button>
+          <a class="btn ghost" href="/app" data-i18n="settings.back">Back to dashboard</a>
         </div>
       </form>
     </main>
 
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
     <script src="/settings.js"></script>
   </body>

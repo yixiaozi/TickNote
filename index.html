@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -17,8 +17,10 @@
           id="tickBtn"
           class="icon-btn tick-btn on"
           type="button"
-          title="滴答声：开"
-          aria-label="切换滴答声"
+          title="Tick sound: on"
+          aria-label="Toggle tick sound"
+          data-i18n-title="main.tick_on"
+          data-i18n-aria="main.tick_toggle"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -30,8 +32,10 @@
           id="statsBtn"
           class="icon-btn chart-btn"
           type="button"
-          title="查看统计"
-          aria-label="查看统计"
+          title="Open stats"
+          aria-label="Open stats"
+          data-i18n-title="main.stats"
+          data-i18n-aria="main.stats"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="4" y="11" width="3.2" height="9" rx="1" />
@@ -48,7 +52,7 @@
             <circle id="ringProgress" class="ring-progress" cx="50" cy="50" r="42" />
           </svg>
         </div>
-        <div class="time-block" title="拖动移动位置">
+        <div class="time-block" title="Drag to move" data-i18n-title="main.drag">
           <div class="time-row">
             <div id="time" class="time">1:00</div>
             <span
@@ -56,10 +60,12 @@
               class="loop-label"
               role="button"
               tabindex="0"
-              title="重置并记入统计"
-              ><span class="loop-affix">第</span><span id="loopCount">0</span
-              ><span class="loop-affix">轮</span></span
-            >
+              title="Reset and save to stats"
+              data-i18n-title="main.reset"
+              ><span class="loop-affix" data-i18n="main.loop_prefix">R</span
+              ><span id="loopCount">0</span
+              ><span class="loop-affix" data-i18n="main.loop_suffix"></span
+            ></span>
           </div>
         </div>
       </div>
@@ -70,14 +76,17 @@
           class="note-input"
           rows="1"
           maxlength="2000"
-          placeholder="正在做什么…（时间标记）"
+          placeholder="What are you doing… (time note)"
           spellcheck="false"
           oncontextmenu="return false"
-          title="回车结束本轮；Ctrl+Enter 换行"
+          title="Enter ends this round; Ctrl+Enter for newline"
+          data-i18n-placeholder="main.note_placeholder"
+          data-i18n-title="main.note_title"
         ></textarea>
       </div>
       <div id="flash" class="flash" aria-hidden="true"></div>
     </div>
+    <script src="i18n.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>
