@@ -872,6 +872,15 @@ function applyMiniLayout(enteringMini) {
   }
 }
 
+function minutesFromRange(startedAt, endedAt, fallback = 0) {
+  const start = startedAt ? new Date(startedAt).getTime() : NaN;
+  const end = endedAt ? new Date(endedAt).getTime() : NaN;
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+    return Math.max(0, Number(fallback) || 0);
+  }
+  return Math.round(((end - start) / 60_000) * 10) / 10;
+}
+
 function loadSessions() {
   const data = readJson(SESSIONS_PATH(), []);
   return Array.isArray(data) ? data : [];
@@ -879,6 +888,34 @@ function loadSessions() {
 
 function saveSessions(sessions) {
   writeJson(SESSIONS_PATH(), sessions);
+}
+
+/** Recompute minutes from start/end so history matches the time range. */
+function repairSessionDurations() {
+  const sessions = loadSessions();
+  if (!sessions.length) return sessions;
+  const now = new Date().toISOString();
+  let changed = false;
+  const next = sessions.map((raw) => {
+    const startedAt = raw.startedAt || null;
+    const endedAt = raw.endedAt || raw.updatedAt || null;
+    const minutes = minutesFromRange(startedAt, endedAt, raw.minutes);
+    const prev = Math.round((Number(raw.minutes) || 0) * 10) / 10;
+    if (Math.abs(minutes - prev) <= 0.05) {
+      return raw;
+    }
+    changed = true;
+    return {
+      ...raw,
+      minutes,
+      rounds: Math.max(0, Number(raw.rounds) || 0),
+      updatedAt: now,
+    };
+  });
+  if (changed) {
+    saveSessions(next);
+  }
+  return next;
 }
 
 function loadDraft() {
@@ -909,14 +946,16 @@ function normalizeSession(session, existingId) {
     typeof session.device === "string" && session.device.trim()
       ? session.device.trim()
       : getDeviceLabel();
+  const startedAt = session.startedAt || null;
   const endedAt = session.endedAt || new Date().toISOString();
+  const minutes = minutesFromRange(startedAt, endedAt, session.minutes);
   return {
     id: existingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     note: String(session.note || "").trim() || "未命名",
     rounds: Math.max(0, Number(session.rounds) || 0),
-    minutes: Math.max(0, Number(session.minutes) || 0),
+    minutes,
     device,
-    startedAt: session.startedAt || null,
+    startedAt,
     endedAt,
     updatedAt: session.updatedAt || endedAt,
   };
@@ -924,9 +963,12 @@ function normalizeSession(session, existingId) {
 
 function isMeaningful(session) {
   if (!session) return false;
-  const rounds = Number(session.rounds) || 0;
-  const minutes = Number(session.minutes) || 0;
-  return rounds > 0 || minutes >= 0.2;
+  const minutes = minutesFromRange(
+    session.startedAt,
+    session.endedAt || session.updatedAt,
+    session.minutes
+  );
+  return minutes >= 0.2;
 }
 
 /** Promote unfinished draft into permanent history after crash/force quit. */
@@ -1258,7 +1300,20 @@ function createWindow() {
   mainWindow.setClosable(false);
 
   mainWindow.loadFile("index.html");
-  attachEditContextMenu(mainWindow);
+  // Main countdown HUD: never show a context menu.
+  mainWindow.webContents.on("context-menu", (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "mouseDown" && input.button === "right") {
+      event.preventDefault();
+    }
+  });
+  if (process.platform === "win32" && typeof mainWindow.hookWindowMessage === "function") {
+    // WM_CONTEXTMENU / WM_RBUTTONUP — swallow native shell menu on frameless HUD.
+    mainWindow.hookWindowMessage(0x007b, () => {});
+    mainWindow.hookWindowMessage(0x0205, () => {});
+  }
 
   mainWindow.webContents.on("did-finish-load", () => {
     sendToRenderer("countdown:tick-sound", tickSoundEnabled);
@@ -1592,11 +1647,13 @@ if (!gotLock) {
     await ensureDataDirectoryConfigured();
     loadSettings();
     consumeDraftOnStartup();
+    repairSessionDurations();
 
     if (process.platform === "darwin" && app.dock) {
       app.dock.hide();
     }
 
+    Menu.setApplicationMenu(null);
     createWindow();
     createTray();
     startSyncTimer();

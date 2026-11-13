@@ -21,6 +21,7 @@
       </div>
       <div class="titlebar-actions">
         <button id="miniBtn" class="tool-btn" type="button" title="迷你模式：最近5条">迷</button>
+        <button id="searchBtn" class="tool-btn" type="button" title="搜索历史">搜</button>
         <button id="deviceBtn" class="tool-btn" type="button" title="显示机器名">机</button>
         <button id="lockBtn" class="tool-btn" type="button" title="固定位置">固</button>
         <button id="topBtn" class="tool-btn" type="button" title="窗口置顶">顶</button>
@@ -29,8 +30,21 @@
       </div>
     </header>
 
+    <section id="searchLine" class="search-line hidden">
+      <input
+        id="searchInput"
+        class="search-input"
+        type="search"
+        placeholder="多关键词=同时包含，-词=排除…"
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <button id="searchClearBtn" class="nav-btn" type="button" title="关闭搜索">×</button>
+    </section>
+
     <section id="navLine" class="nav-line">
       <div class="date-cluster">
+        <button id="homeBtn" class="nav-btn home-btn" type="button" title="回到当前时间">⌂</button>
         <button id="prevDayBtn" class="nav-btn" type="button" title="前一天有数据">‹</button>
         <div class="date-wrap">
           <button id="dateLabel" class="date-text" type="button" title="选择有数据的日期">

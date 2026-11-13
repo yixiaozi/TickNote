@@ -83,6 +83,13 @@ body.mini .record-note {
   overflow: hidden;
 }
 
+body.mini .record-note:focus {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: auto;
+  max-height: 72px;
+}
+
 .titlebar-actions {
   display: flex;
   align-items: center;
@@ -215,6 +222,49 @@ h1 {
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.home-btn {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.search-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(61, 214, 198, 0.55);
+}
+
+.record-date {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 650;
+  line-height: 1.2;
+  margin-bottom: 1px;
+}
+
+body.searching .nav-line {
+  display: none !important;
 }
 
 .calendar-pop {
@@ -363,7 +413,7 @@ h1 {
 
 .record {
   display: grid;
-  grid-template-columns: minmax(5.6em, auto) 2.2em minmax(0, 1fr);
+  grid-template-columns: max-content max-content minmax(0, 1fr);
   align-items: start;
   column-gap: 0;
   row-gap: 1px;
@@ -378,6 +428,7 @@ h1 {
   display: grid;
   gap: 1px;
   padding-top: 1px;
+  padding-right: 6px;
 }
 
 .record-stats {
@@ -385,12 +436,19 @@ h1 {
   font-size: 12px;
   line-height: 1.35;
   padding-top: 1px;
-  padding-right: 4px;
+  padding-right: 12px;
   white-space: nowrap;
   color: var(--accent);
   font-weight: 650;
-  text-align: right;
+  text-align: left;
   min-width: 0;
+}
+
+.search-hit {
+  color: #ff6b6b;
+  background: transparent;
+  font-weight: 700;
+  padding: 0;
 }
 
 .record-range {

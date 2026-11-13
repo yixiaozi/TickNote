@@ -14,7 +14,9 @@ ringEl.style.strokeDasharray = String(CIRCUMFERENCE);
 
 /** @type {AudioContext | null} */
 let audioCtx = null;
-let cycleStart = performance.now();
+/** Active countdown elapsed; sleep gaps are not counted. */
+let activeElapsedMs = 0;
+let lastWallTick = Date.now();
 let sessionStartedAt = new Date();
 let completedLoops = 0;
 let lastDisplaySec = -1;
@@ -23,6 +25,7 @@ let zeroHoldUntil = 0;
 let tickSoundEnabled = true;
 let resetting = false;
 let lastDraftSaveAt = 0;
+const SLEEP_GAP_MS = 2500;
 
 function ensureAudio() {
   if (!audioCtx) {
@@ -98,20 +101,36 @@ function renderLoopCount(loops) {
   loopCountEl.textContent = String(loops);
 }
 
+function syncActiveElapsed() {
+  const wallNow = Date.now();
+  let delta = wallNow - lastWallTick;
+  lastWallTick = wallNow;
+  // Sleep / long stall: do not add the paused wall time to rounds.
+  if (delta < 0 || delta > SLEEP_GAP_MS) {
+    delta = 0;
+  }
+  activeElapsedMs += delta;
+  return activeElapsedMs;
+}
+
 function currentMinutes() {
-  const totalElapsed = performance.now() - cycleStart;
-  return Math.round((totalElapsed / 60_000) * 10) / 10;
+  return Math.round((activeElapsedMs / 60_000) * 10) / 10;
 }
 
 function buildDraftPayload() {
-  const minutes = currentMinutes();
-  const rounds = completedLoops;
+  const endedAt = new Date();
+  // Duration always follows wall-clock start/end (source of truth).
+  const minutes = Math.max(
+    0,
+    Math.round(((endedAt.getTime() - sessionStartedAt.getTime()) / 60_000) * 10) /
+      10
+  );
   return {
     note: noteInput.value.trim() || "未命名",
-    rounds,
-    minutes: minutes > 0 ? minutes : rounds,
+    rounds: completedLoops,
+    minutes,
     startedAt: sessionStartedAt.toISOString(),
-    endedAt: new Date().toISOString(),
+    endedAt: endedAt.toISOString(),
   };
 }
 
@@ -121,7 +140,7 @@ function persistDraft(force = false) {
   if (!force && now - lastDraftSaveAt < 5000) return;
 
   const draft = buildDraftPayload();
-  if (draft.rounds <= 0 && draft.minutes < 0.2) return;
+  if (draft.minutes < 0.2) return;
 
   lastDraftSaveAt = now;
   window.countdownApi.saveDraft(draft);
@@ -129,7 +148,7 @@ function persistDraft(force = false) {
 
 async function saveCurrentSession() {
   const draft = buildDraftPayload();
-  if (draft.rounds <= 0 && draft.minutes < 0.2) {
+  if (draft.minutes < 0.2) {
     await window.countdownApi?.clearDraft?.();
     return;
   }
@@ -145,7 +164,8 @@ async function resetCountdown() {
   try {
     await saveCurrentSession();
     ensureAudio();
-    cycleStart = performance.now();
+    activeElapsedMs = 0;
+    lastWallTick = Date.now();
     sessionStartedAt = new Date();
     completedLoops = 0;
     lastDisplaySec = -1;
@@ -167,23 +187,23 @@ async function resetCountdown() {
 }
 
 function update() {
-  const now = performance.now();
-  const totalElapsed = now - cycleStart;
+  const totalElapsed = syncActiveElapsed();
   const cycles = Math.floor(totalElapsed / DURATION_MS);
   const elapsed = totalElapsed - cycles * DURATION_MS;
   const remainingMs = DURATION_MS - elapsed;
   let displaySec = Math.ceil(remainingMs / 1000);
   if (displaySec > 60) displaySec = 60;
+  const wallNow = Date.now();
 
   if (cycles > completedLoops) {
     completedLoops = cycles;
     persistDraft(true);
   }
 
-  if (cycles > 0 && elapsed < 16 && zeroHoldUntil < now) {
-    zeroHoldUntil = now + 280;
+  if (cycles > 0 && elapsed < 16 && zeroHoldUntil < wallNow) {
+    zeroHoldUntil = wallNow + 280;
   }
-  if (now < zeroHoldUntil) {
+  if (wallNow < zeroHoldUntil) {
     displaySec = 0;
   } else if (displaySec === 0) {
     displaySec = 60;
@@ -349,22 +369,36 @@ window.addEventListener("beforeunload", () => {
   persistDraft(true);
 });
 
+function blockContextMenu(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  return false;
+}
+
+document.addEventListener("contextmenu", blockContextMenu, true);
+window.addEventListener("contextmenu", blockContextMenu, true);
 document.addEventListener(
-  "contextmenu",
+  "mouseup",
   (event) => {
-    // Let Electron show cut/copy/paste on editable fields; block elsewhere.
-    const t = event.target;
-    if (
-      t instanceof HTMLElement &&
-      (t.closest("textarea") || t.closest("input") || t.isContentEditable)
-    ) {
-      return;
+    if (event.button === 2) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    event.preventDefault();
-    event.stopPropagation();
   },
   true
 );
+if (noteInput) {
+  noteInput.addEventListener("contextmenu", blockContextMenu, true);
+}
+
+document.addEventListener("visibilitychange", () => {
+  // After sleep/lock, reset wall baseline so the next frame doesn't count downtime.
+  lastWallTick = Date.now();
+});
+
+window.addEventListener("focus", () => {
+  lastWallTick = Date.now();
+});
 
 renderLoopCount(0);
 syncNoteInputHeight();

@@ -5,10 +5,12 @@ const hourEmptyEl = document.getElementById("hourEmpty");
 const totalMinutesEl = document.getElementById("totalMinutes");
 const totalSessionsEl = document.getElementById("totalSessions");
 const dateLabel = document.getElementById("dateLabel");
+const homeBtn = document.getElementById("homeBtn");
 const prevDayBtn = document.getElementById("prevDayBtn");
 const nextDayBtn = document.getElementById("nextDayBtn");
 const closeBtn = document.getElementById("closeBtn");
 const miniBtn = document.getElementById("miniBtn");
+const searchBtn = document.getElementById("searchBtn");
 const deviceBtn = document.getElementById("deviceBtn");
 const lockBtn = document.getElementById("lockBtn");
 const topBtn = document.getElementById("topBtn");
@@ -19,6 +21,10 @@ const calDays = document.getElementById("calDays");
 const calMonthLabel = document.getElementById("calMonthLabel");
 const calPrevMonth = document.getElementById("calPrevMonth");
 const calNextMonth = document.getElementById("calNextMonth");
+const navLineEl = document.getElementById("navLine");
+const searchLineEl = document.getElementById("searchLine");
+const searchInput = document.getElementById("searchInput");
+const searchClearBtn = document.getElementById("searchClearBtn");
 
 let sessionsCache = [];
 let selectedDate = toDateKey(new Date());
@@ -26,6 +32,8 @@ let selectedDate = toDateKey(new Date());
 let selectedHour = null;
 let calendarMonth = startOfMonth(new Date());
 let calendarOpen = false;
+let searchOpen = false;
+let searchQuery = "";
 let prefs = {
   alwaysOnTop: false,
   locked: false,
@@ -37,6 +45,7 @@ let prefs = {
 const OPACITY_STEPS = [1, 0.85, 0.7, 0.55];
 const MINI_LIMIT = 5;
 const GAP_THRESHOLD_MS = 5000;
+const GAP_PLACEHOLDER = "空白时间（可填写或删除）";
 /** @type {Set<string>} */
 let dismissedGaps = new Set();
 /** @type {{ dateKey: string, sessionsRef: any, items: any[] } | null} */
@@ -91,6 +100,18 @@ function formatDuration(minutes) {
   return `${hours}小时${mins}分`;
 }
 
+/** Prefer wall-clock range; fall back to stored minutes. */
+function sessionMinutes(session) {
+  const start = session.startedAt ? new Date(session.startedAt).getTime() : NaN;
+  const end = session.endedAt
+    ? new Date(session.endedAt).getTime()
+    : sessionTime(session).getTime();
+  if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) {
+    return Math.round(((end - start) / 60_000) * 10) / 10;
+  }
+  return Math.max(0, Number(session.minutes) || 0);
+}
+
 function formatDateShort(key) {
   const date = parseDateKey(key);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
@@ -110,8 +131,8 @@ function sessionsOnDate(dateKey) {
 
 function hoursForDate(dateKey) {
   const hours = new Set();
-  for (const session of sessionsOnDate(dateKey)) {
-    hours.add(sessionTime(session).getHours());
+  for (const item of getDayTimeline(dateKey)) {
+    hours.add(hourOfEnd(sessionEnd(item)));
   }
   return [...hours].sort((a, b) => a - b);
 }
@@ -161,9 +182,9 @@ function buildGapItems(gapStart, gapEnd) {
       return {
         id,
         isGap: true,
-        note: "空白时间（可填写或删除）",
+        note: GAP_PLACEHOLDER,
         rounds: 0,
-        minutes: Math.min(60, minutes),
+        minutes,
         startedAt,
         endedAt,
         device: "",
@@ -211,13 +232,24 @@ function getDayTimeline(dateKey) {
   return items;
 }
 
+/** Bucket by end time; exact :00:00 counts as previous hour (e.g. 14:00 → 13). */
+function hourOfEnd(date) {
+  const h = date.getHours();
+  const atHourMark =
+    date.getMinutes() === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0;
+  if (atHourMark) {
+    return h === 0 ? 0 : h - 1;
+  }
+  return h;
+}
+
 function recordsForSelection() {
   if (selectedHour === null) return [];
-  return getDayTimeline(selectedDate).filter((item) => {
-    const startHour = sessionStart(item).getHours();
-    const endHour = sessionEnd(item).getHours();
-    return startHour === selectedHour || endHour === selectedHour;
-  });
+  return getDayTimeline(selectedDate).filter(
+    (item) => hourOfEnd(sessionEnd(item)) === selectedHour
+  );
 }
 
 function dayProgressRatio(dateKey) {
@@ -240,7 +272,7 @@ function hourProgressRatio(dateKey, hour) {
 function updateSummary(items) {
   const realItems = items.filter((s) => !s.isGap);
   const totalMinutes = realItems.reduce(
-    (sum, s) => sum + (Number(s.minutes) || 0),
+    (sum, s) => sum + sessionMinutes(s),
     0
   );
   totalMinutesEl.textContent = formatDuration(totalMinutes);
@@ -302,7 +334,73 @@ function latestSessions(limit) {
     .slice(0, limit);
 }
 
-function renderRecordItems(items) {
+function parseSearchQuery(query) {
+  const tokens = String(query || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const include = [];
+  const exclude = [];
+  for (const token of tokens) {
+    if (token.startsWith("-") && token.length > 1) {
+      exclude.push(token.slice(1).toLowerCase());
+    } else if (!token.startsWith("-")) {
+      include.push(token.toLowerCase());
+    }
+  }
+  return { include, exclude };
+}
+
+function sessionSearchHaystack(session) {
+  return [
+    String(session.note || ""),
+    String(session.device || ""),
+    toDateKey(sessionTime(session)),
+  ]
+    .join("\n")
+    .toLowerCase();
+}
+
+function highlightSearchHtml(text, includeTerms) {
+  const raw = String(text || "");
+  if (!includeTerms.length) return escapeHtml(raw);
+  const lower = raw.toLowerCase();
+  const terms = [...includeTerms]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  const hits = [];
+  for (const term of terms) {
+    let from = 0;
+    while (from < lower.length) {
+      const i = lower.indexOf(term, from);
+      if (i < 0) break;
+      hits.push([i, i + term.length]);
+      from = i + term.length;
+    }
+  }
+  if (!hits.length) return escapeHtml(raw);
+  hits.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  const merged = [];
+  for (const hit of hits) {
+    const last = merged[merged.length - 1];
+    if (last && hit[0] < last[1]) {
+      last[1] = Math.max(last[1], hit[1]);
+    } else {
+      merged.push([hit[0], hit[1]]);
+    }
+  }
+  let out = "";
+  let cursor = 0;
+  for (const [start, end] of merged) {
+    if (cursor < start) out += escapeHtml(raw.slice(cursor, start));
+    out += `<mark class="search-hit">${escapeHtml(raw.slice(start, end))}</mark>`;
+    cursor = end;
+  }
+  if (cursor < raw.length) out += escapeHtml(raw.slice(cursor));
+  return out;
+}
+
+function renderRecordItems(items, highlightTerms = []) {
   recordListEl.innerHTML = items
     .map((session) => {
       const time = sessionTime(session);
@@ -310,17 +408,22 @@ function renderRecordItems(items) {
         ? formatClock(new Date(session.startedAt))
         : "—";
       const end = formatClock(time);
-      const minutes = Number(session.minutes) || 0;
+      const minutes = sessionMinutes(session);
       const device = String(session.device || "").trim();
       const devicePart =
         prefs.showDevice && device
-          ? `<div class="record-device" title="${escapeHtml(device)}">${escapeHtml(device)}</div>`
+          ? `<div class="record-device" title="${escapeHtml(device)}">${highlightSearchHtml(device, highlightTerms)}</div>`
           : "";
       const isGap = Boolean(session.isGap);
-      const editable = !prefs.mini;
       const noteText = isGap
-        ? session.note || "空白时间（可填写或删除）"
+        ? session.note || GAP_PLACEHOLDER
         : session.note || "未命名";
+      const noteHtml = highlightTerms.length
+        ? highlightSearchHtml(noteText, highlightTerms)
+        : escapeHtml(noteText);
+      const datePart = session.showDate
+        ? `<div class="record-date">${escapeHtml(toDateKey(sessionEnd(session)))}</div>`
+        : "";
       const actions = isGap
         ? `<div class="record-actions">
             <button class="gap-icon-btn save" type="button" data-fill-gap="${escapeHtml(session.id)}" title="保存为记录" aria-label="保存为记录">
@@ -334,21 +437,24 @@ function renderRecordItems(items) {
       return `
         <article class="record${isGap ? " gap" : ""}" data-id="${escapeHtml(session.id)}" data-gap="${isGap ? "1" : "0"}">
           <div class="record-time">
+            ${datePart}
             <div class="record-range">${start}→${end}</div>
             ${devicePart}
           </div>
-          <div class="record-stats">${formatDuration(Math.min(60, minutes))}</div>
+          <div class="record-stats">${formatDuration(minutes)}</div>
           <div class="record-main">
             <div
               class="record-note"
-              contenteditable="${editable ? "true" : "false"}"
+              contenteditable="true"
               spellcheck="false"
               data-id="${escapeHtml(session.id)}"
               data-gap="${isGap ? "1" : "0"}"
               data-started="${escapeHtml(session.startedAt || "")}"
               data-ended="${escapeHtml(session.endedAt || "")}"
               data-minutes="${minutes}"
-            >${escapeHtml(noteText)}</div>
+              data-placeholder="${isGap ? "1" : "0"}"
+              title="回车保存；Ctrl+Enter 换行"
+            >${noteHtml}</div>
             ${actions}
           </div>
         </article>`;
@@ -356,7 +462,74 @@ function renderRecordItems(items) {
     .join("");
 }
 
+function searchSessions(query) {
+  const { include, exclude } = parseSearchQuery(query);
+  if (!include.length && !exclude.length) return [];
+  return [...sessionsCache]
+    .filter((s) => {
+      const hay = sessionSearchHaystack(s);
+      if (exclude.some((k) => hay.includes(k))) return false;
+      if (!include.length) return true;
+      // Multiple terms = AND (must contain all)
+      return include.every((k) => hay.includes(k));
+    })
+    .sort((a, b) => sessionTime(b).getTime() - sessionTime(a).getTime())
+    .slice(0, 200)
+    .map((s) => ({ ...s, showDate: true }));
+}
+
+function setSearchOpen(open) {
+  searchOpen = Boolean(open);
+  searchLineEl?.classList.toggle("hidden", !searchOpen);
+  navLineEl?.classList.toggle("hidden", searchOpen || Boolean(prefs.mini));
+  searchBtn?.classList.toggle("active", searchOpen);
+  document.body.classList.toggle("searching", searchOpen);
+  if (searchOpen) {
+    setCalendarOpen(false);
+    searchInput?.focus();
+    searchInput?.select?.();
+  } else {
+    searchQuery = "";
+    if (searchInput) searchInput.value = "";
+  }
+  renderRecords();
+}
+
+function jumpToNow() {
+  setSearchOpen(false);
+  selectedDate = toDateKey(new Date());
+  selectedHour = new Date().getHours();
+  dayTimelineCache = null;
+  const hours = hoursForDate(selectedDate);
+  if (hours.length && !hours.includes(selectedHour)) {
+    selectedHour = hours[hours.length - 1];
+  }
+  if (!hours.length) selectedHour = null;
+  render();
+}
+
 function renderRecords() {
+  if (searchOpen) {
+    emptyEl.classList.add("hidden");
+    hourEmptyEl.classList.add("hidden");
+    miniEmptyEl.classList.add("hidden");
+    const items = searchSessions(searchQuery);
+    emptyEl.classList.toggle("hidden", items.length > 0 || !searchQuery);
+    if (!searchQuery) {
+      emptyEl.textContent = "输入关键词搜索历史记录";
+      emptyEl.classList.remove("hidden");
+    } else if (!items.length) {
+      emptyEl.textContent = "没有匹配的记录";
+      emptyEl.classList.remove("hidden");
+    } else {
+      emptyEl.textContent = "这一天还没有记录。";
+    }
+    const { include } = parseSearchQuery(searchQuery);
+    updateSummary(items);
+    renderRecordItems(items, include);
+    return;
+  }
+
   if (prefs.mini) {
     const items = latestSessions(MINI_LIMIT);
     emptyEl.classList.add("hidden");
@@ -368,6 +541,7 @@ function renderRecords() {
   }
 
   miniEmptyEl.classList.add("hidden");
+  emptyEl.textContent = "这一天还没有记录。";
   const dayItems = sessionsOnDate(selectedDate);
   const items = recordsForSelection();
 
@@ -477,7 +651,7 @@ async function saveNote(sessionId, note) {
 
 async function fillGapFromNote(noteEl, { force = false } = {}) {
   let note = (noteEl.textContent || "").trim();
-  if (!note || note === "空白时间（可填写或删除）") {
+  if (!note || note === GAP_PLACEHOLDER) {
     if (!force) return;
     note = "空白时间";
   }
@@ -537,6 +711,22 @@ recordListEl.addEventListener("click", async (event) => {
   }
 });
 
+recordListEl.addEventListener("focusin", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (!target.classList.contains("record-note")) return;
+  // Flatten highlight marks before editing.
+  if (target.querySelector(".search-hit")) {
+    target.textContent = target.textContent || "";
+  }
+  if (target.dataset.gap !== "1") return;
+  const text = (target.textContent || "").trim();
+  if (text === GAP_PLACEHOLDER || text === "空白时间") {
+    target.textContent = "";
+    target.dataset.placeholder = "1";
+  }
+});
+
 recordListEl.addEventListener("focusout", async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
@@ -545,6 +735,11 @@ recordListEl.addEventListener("focusout", async (event) => {
   const sessionId = target.dataset.id;
   if (!sessionId) return;
   if (target.dataset.gap === "1") {
+    const text = (target.textContent || "").trim();
+    if (!text) {
+      target.textContent = GAP_PLACEHOLDER;
+      return;
+    }
     await fillGapFromNote(target);
     return;
   }
@@ -603,6 +798,10 @@ calDays.addEventListener("click", (event) => {
   render();
 });
 
+homeBtn?.addEventListener("click", () => {
+  jumpToNow();
+});
+
 prevDayBtn.addEventListener("click", () => {
   const prev = neighborDate(selectedDate, -1);
   if (!prev) return;
@@ -619,6 +818,30 @@ nextDayBtn.addEventListener("click", () => {
   render();
 });
 
+searchBtn?.addEventListener("click", () => {
+  if (prefs.mini) {
+    patchPrefs({ mini: false }).then(() => setSearchOpen(true));
+    return;
+  }
+  setSearchOpen(!searchOpen);
+});
+
+searchClearBtn?.addEventListener("click", () => {
+  setSearchOpen(false);
+});
+
+searchInput?.addEventListener("input", () => {
+  searchQuery = searchInput.value || "";
+  renderRecords();
+});
+
+searchInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setSearchOpen(false);
+  }
+});
+
 function renderPrefs() {
   miniBtn.classList.toggle("active", Boolean(prefs.mini));
   deviceBtn.classList.toggle("active", Boolean(prefs.showDevice));
@@ -632,7 +855,11 @@ function renderPrefs() {
   opacityBtn.title = `透明度 ${Math.round(prefs.opacity * 100)}%`;
   document.body.classList.toggle("locked", Boolean(prefs.locked));
   document.body.classList.toggle("mini", Boolean(prefs.mini));
-  if (prefs.mini) setCalendarOpen(false);
+  if (prefs.mini) {
+    setCalendarOpen(false);
+    if (searchOpen) setSearchOpen(false);
+  }
+  navLineEl?.classList.toggle("hidden", searchOpen || Boolean(prefs.mini));
   render();
 }
 
