@@ -20,6 +20,12 @@ contextBridge.exposeInMainWorld("countdownApi", {
     ipcRenderer.on("countdown:reset", listener);
     return () => ipcRenderer.removeListener("countdown:reset", listener);
   },
+  onRestartFromRemote(callback) {
+    const listener = (_event, info) => callback(info || {});
+    ipcRenderer.on("countdown:restart-from-remote", listener);
+    return () =>
+      ipcRenderer.removeListener("countdown:restart-from-remote", listener);
+  },
   onFlushDraft(callback) {
     const listener = () => callback();
     ipcRenderer.on("countdown:flush-draft", listener);

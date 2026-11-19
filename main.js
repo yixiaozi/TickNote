@@ -16,6 +16,7 @@ const {
   DEFAULT_API_BASE,
   createAccountClient,
   mergeSessions,
+  findRecentForeignSessions,
 } = require("./sync-account");
 const {
   createLocalMcpServer,
@@ -787,14 +788,37 @@ async function pushLocalSessions() {
 }
 
 async function pullRemoteSessions() {
-  if (!accountToken) return;
+  if (!accountToken) return { remoteRestart: false };
+  const localBefore = loadSessions();
   const payload = await accountApi.pull();
-  const merged = mergeSessions(loadSessions(), payload.sessions || []);
+  const incoming = payload.sessions || [];
+  const foreignRecent = findRecentForeignSessions(localBefore, incoming, {
+    myDevice: getDeviceLabel(),
+  });
+  const merged = mergeSessions(localBefore, incoming);
   const adjacent = mergeAdjacentIdenticalSessions(merged);
   saveSessions(adjacent.sessions);
   broadcastSessions(adjacent.sessions);
   lastSyncAt = payload.serverTime || new Date().toISOString();
   saveSettings();
+
+  // Another device just logged a session — drop local draft and restart timer
+  // so wall-clock ranges do not overlap across clients.
+  if (foreignRecent.length > 0) {
+    clearDraft();
+    sendToRenderer("countdown:restart-from-remote", {
+      count: foreignRecent.length,
+      devices: [
+        ...new Set(
+          foreignRecent
+            .map((s) => String(s.device || "").trim())
+            .filter(Boolean)
+        ),
+      ],
+    });
+    return { remoteRestart: true };
+  }
+  return { remoteRestart: false };
 }
 
 async function syncNow({ quiet = true } = {}) {
@@ -836,9 +860,10 @@ async function syncNow({ quiet = true } = {}) {
 
 function startSyncTimer() {
   if (syncTimer) clearInterval(syncTimer);
+  // Poll often enough that peer notes can restart local timing before overlap grows.
   syncTimer = setInterval(() => {
     syncNow({ quiet: true }).catch(() => {});
-  }, 5 * 60 * 1000);
+  }, 30 * 1000);
 }
 
 function getStatsPrefsPayload() {

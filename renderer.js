@@ -162,11 +162,15 @@ async function saveCurrentSession() {
   }
 }
 
-async function resetCountdown() {
+async function beginFreshCountdown({ saveFirst = true, beepCue = true } = {}) {
   if (resetting) return;
   resetting = true;
   try {
-    await saveCurrentSession();
+    if (saveFirst) {
+      await saveCurrentSession();
+    } else if (window.countdownApi?.clearDraft) {
+      await window.countdownApi.clearDraft();
+    }
     ensureAudio();
     sessionStartedAt = new Date();
     activeElapsedMs = 0;
@@ -182,11 +186,20 @@ async function resetCountdown() {
     timeEl.textContent = "1:00";
     setPhase(60);
     ringEl.style.strokeDashoffset = "0";
-    beep(640, 70, 0.12);
+    if (beepCue) beep(640, 70, 0.12);
     noteInput.focus();
   } finally {
     resetting = false;
   }
+}
+
+async function resetCountdown() {
+  await beginFreshCountdown({ saveFirst: true, beepCue: true });
+}
+
+/** Peer device logged a session — restart without saving overlapping local draft. */
+async function restartCountdownFromRemote() {
+  await beginFreshCountdown({ saveFirst: false, beepCue: true });
 }
 
 function update() {
@@ -335,6 +348,12 @@ noteInput.addEventListener("change", () => {
 if (window.countdownApi?.onReset) {
   window.countdownApi.onReset(() => {
     resetCountdown();
+  });
+}
+
+if (window.countdownApi?.onRestartFromRemote) {
+  window.countdownApi.onRestartFromRemote(() => {
+    restartCountdownFromRemote();
   });
 }
 

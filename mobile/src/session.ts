@@ -1,7 +1,7 @@
 import type { Session } from "./types";
 
 export function newId(): string {
-  return `ios-${Date.now().toString(36)}-${Math.random()
+  return `m-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 10)}`;
 }
@@ -24,6 +24,35 @@ export function formatDuration(totalMinutes: number): string {
   const days = Math.floor(hours / 24);
   const remHours = hours % 24;
   return remHours > 0 ? `${days} 天 ${remHours} 小时` : `${days} 天`;
+}
+
+/** Recent foreign sessions that should force local timer restart (avoid overlap). */
+export const REMOTE_TIMER_RESTART_WINDOW_MS = 15 * 60 * 1000;
+
+export function findRecentForeignSessions(
+  localSessions: Session[],
+  remoteSessions: Session[],
+  options: { myDevice?: string; windowMs?: number } = {}
+): Session[] {
+  const localIds = new Set(
+    (localSessions || []).map((s) => s?.id).filter(Boolean) as string[]
+  );
+  const windowMs = Math.max(
+    60_000,
+    Number(options.windowMs) || REMOTE_TIMER_RESTART_WINDOW_MS
+  );
+  const cutoff = Date.now() - windowMs;
+  const mine = String(options.myDevice || "").trim();
+  return (remoteSessions || []).filter((remote) => {
+    if (!remote?.id || remote.deleted) return false;
+    if (localIds.has(remote.id)) return false;
+    const device = String(remote.device || "").trim();
+    if (mine && device && device === mine) return false;
+    const stamp = new Date(
+      remote.endedAt || remote.updatedAt || remote.startedAt || 0
+    ).getTime();
+    return Number.isFinite(stamp) && stamp >= cutoff;
+  });
 }
 
 export function mergeSessions(
@@ -69,6 +98,22 @@ export function mergeSessions(
   });
 }
 
+export function deviceLabel(): string {
+  // Keep in sync with HomeScreen foreign-device checks.
+  try {
+    // Lazy require keeps session helpers usable in plain tests.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as {
+      Platform: { OS: string };
+    };
+    if (Platform.OS === "ios") return "TickNote iOS";
+    if (Platform.OS === "android") return "TickNote Android";
+  } catch {
+    /* ignore */
+  }
+  return "TickNote Mobile";
+}
+
 export function createFinishedSession(input: {
   note: string;
   startedAt: string;
@@ -86,7 +131,7 @@ export function createFinishedSession(input: {
     note: input.note.trim() || "未命名",
     rounds: Math.max(1, input.rounds || 1),
     minutes,
-    device: "TickNote iOS",
+    device: deviceLabel(),
     startedAt: input.startedAt,
     endedAt: input.endedAt,
     updatedAt: input.endedAt,

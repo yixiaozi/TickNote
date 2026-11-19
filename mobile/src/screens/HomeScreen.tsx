@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,6 +12,8 @@ import {
 import { fetchSummary, pullSessions, pushSessions } from "../api";
 import {
   createFinishedSession,
+  deviceLabel,
+  findRecentForeignSessions,
   formatDuration,
   mergeSessions,
   nowIso,
@@ -20,6 +23,8 @@ import { colors } from "../theme";
 import type { AuthState, Session } from "../types";
 
 const ROUND_SECONDS = 60;
+const MY_DEVICE = deviceLabel();
+const SYNC_POLL_MS = 30_000;
 
 type Props = {
   auth: AuthState;
@@ -36,33 +41,102 @@ export function HomeScreen({ auth, onLogout }: Props) {
   const [busy, setBusy] = useState(false);
   const [summaryText, setSummaryText] = useState("—");
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionsRef = useRef<Session[]>([]);
+  const syncingRef = useRef(false);
+
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
+  function restartTimerFromRemote(devices: string[]) {
+    const label = devices.filter(Boolean).join(" / ") || "其他设备";
+    setNote("");
+    setRoundStartedAt(nowIso());
+    setRemaining(ROUND_SECONDS);
+    setRunning(true);
+    setSyncMsg(`已收到 ${label} 的记录，本机计时已重新开始`);
+  }
+
+  async function refreshSummary() {
+    const summary = await fetchSummary(auth.apiBase, auth.token);
+    setSummaryText(
+      `${formatDuration(summary.totalMinutes)} · ${summary.totalSessions} 条`
+    );
+  }
+
+  async function persist(next: Session[]) {
+    sessionsRef.current = next;
+    setSessions(next);
+    await saveLocalSessions(next);
+  }
+
+  async function syncOnce({
+    pushLocal = true,
+    quiet = false,
+  }: { pushLocal?: boolean; quiet?: boolean } = {}) {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    if (!quiet) setBusy(true);
+    try {
+      const local = sessionsRef.current;
+      if (pushLocal && local.length) {
+        await pushSessions(auth.apiBase, auth.token, local);
+      }
+      const remote = await pullSessions(auth.apiBase, auth.token);
+      const incoming = remote.sessions || [];
+      const foreignRecent = findRecentForeignSessions(local, incoming, {
+        myDevice: MY_DEVICE,
+      });
+      const merged = mergeSessions(local, incoming);
+      await persist(merged);
+      await refreshSummary();
+      if (foreignRecent.length > 0) {
+        restartTimerFromRemote(
+          foreignRecent.map((s) => String(s.device || "").trim())
+        );
+      } else if (!quiet) {
+        setSyncMsg(`同步完成（本地 ${merged.length} 条）`);
+      }
+    } catch (err) {
+      if (!quiet) {
+        setSyncMsg(err instanceof Error ? err.message : "同步失败");
+      }
+    } finally {
+      syncingRef.current = false;
+      if (!quiet) setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const local = await loadLocalSessions();
-      if (!cancelled) setSessions(local);
+      if (cancelled) return;
+      sessionsRef.current = local;
+      setSessions(local);
       try {
-        const remote = await pullSessions(auth.apiBase, auth.token);
-        if (cancelled) return;
-        const merged = mergeSessions(local, remote.sessions || []);
-        setSessions(merged);
-        await saveLocalSessions(merged);
-        const summary = await fetchSummary(auth.apiBase, auth.token);
-        if (!cancelled) {
-          setSummaryText(
-            `${formatDuration(summary.totalMinutes)} · ${summary.totalSessions} 条`
-          );
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setSyncMsg(err instanceof Error ? err.message : "同步失败");
-        }
+        await syncOnce({ pushLocal: true, quiet: true });
+      } catch {
+        /* syncOnce handles message */
       }
     })();
+
+    const poll = setInterval(() => {
+      syncOnce({ pushLocal: true, quiet: true }).catch(() => {});
+    }, SYNC_POLL_MS);
+
+    const appSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        syncOnce({ pushLocal: true, quiet: true }).catch(() => {});
+      }
+    });
+
     return () => {
       cancelled = true;
+      clearInterval(poll);
+      appSub.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.apiBase, auth.token]);
 
   useEffect(() => {
@@ -83,11 +157,6 @@ export function HomeScreen({ auth, onLogout }: Props) {
 
   const recent = useMemo(() => sessions.slice(0, 40), [sessions]);
 
-  async function persist(next: Session[]) {
-    setSessions(next);
-    await saveLocalSessions(next);
-  }
-
   async function finishRound() {
     const endedAt = nowIso();
     const session = createFinishedSession({
@@ -96,32 +165,13 @@ export function HomeScreen({ auth, onLogout }: Props) {
       endedAt,
       rounds: 1,
     });
-    const next = mergeSessions([session, ...sessions], []);
+    const next = mergeSessions([session, ...sessionsRef.current], []);
     await persist(next);
     setNote("");
     setRoundStartedAt(endedAt);
     setRemaining(ROUND_SECONDS);
-    setSyncMsg("已保存本地，可点同步上传");
-  }
-
-  async function syncNow() {
-    setBusy(true);
-    setSyncMsg("");
-    try {
-      await pushSessions(auth.apiBase, auth.token, sessions);
-      const remote = await pullSessions(auth.apiBase, auth.token);
-      const merged = mergeSessions(sessions, remote.sessions || []);
-      await persist(merged);
-      const summary = await fetchSummary(auth.apiBase, auth.token);
-      setSummaryText(
-        `${formatDuration(summary.totalMinutes)} · ${summary.totalSessions} 条`
-      );
-      setSyncMsg(`同步完成（本地 ${sessions.length} 条）`);
-    } catch (err) {
-      setSyncMsg(err instanceof Error ? err.message : "同步失败");
-    } finally {
-      setBusy(false);
-    }
+    setSyncMsg("已保存，正在同步…");
+    await syncOnce({ pushLocal: true, quiet: false });
   }
 
   const mm = String(Math.floor(remaining / 60)).padStart(1, "0");
@@ -173,7 +223,7 @@ export function HomeScreen({ auth, onLogout }: Props) {
         <Pressable
           style={[styles.syncBtn, busy && styles.disabled]}
           disabled={busy}
-          onPress={syncNow}
+          onPress={() => syncOnce({ pushLocal: true, quiet: false })}
         >
           {busy ? (
             <ActivityIndicator color={colors.accent} />
@@ -195,7 +245,9 @@ export function HomeScreen({ auth, onLogout }: Props) {
             <View style={{ flex: 1 }}>
               <Text style={styles.itemNote}>{item.note}</Text>
               <Text style={styles.itemMeta}>
-                {(item.endedAt || item.startedAt || "").replace("T", " ").slice(0, 19)}
+                {(item.endedAt || item.startedAt || "")
+                  .replace("T", " ")
+                  .slice(0, 19)}
                 {item.device ? ` · ${item.device}` : ""}
               </Text>
             </View>

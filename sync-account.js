@@ -122,8 +122,35 @@ function mergeSessions(localSessions, remoteSessions) {
   });
 }
 
+/** Recent foreign sessions that should force local timer restart (avoid overlap). */
+const REMOTE_TIMER_RESTART_WINDOW_MS = 15 * 60 * 1000;
+
+function findRecentForeignSessions(
+  localSessions,
+  remoteSessions,
+  { myDevice, windowMs = REMOTE_TIMER_RESTART_WINDOW_MS } = {}
+) {
+  const localIds = new Set(
+    (localSessions || []).map((s) => s && s.id).filter(Boolean)
+  );
+  const cutoff = Date.now() - Math.max(60_000, Number(windowMs) || REMOTE_TIMER_RESTART_WINDOW_MS);
+  const mine = String(myDevice || "").trim();
+  return (remoteSessions || []).filter((remote) => {
+    if (!remote?.id || remote.deleted) return false;
+    if (localIds.has(remote.id)) return false;
+    const device = String(remote.device || "").trim();
+    if (mine && device && device === mine) return false;
+    const stamp = new Date(
+      remote.endedAt || remote.updatedAt || remote.startedAt || 0
+    ).getTime();
+    return Number.isFinite(stamp) && stamp >= cutoff;
+  });
+}
+
 module.exports = {
   DEFAULT_API_BASE,
+  REMOTE_TIMER_RESTART_WINDOW_MS,
   createAccountClient,
   mergeSessions,
+  findRecentForeignSessions,
 };
