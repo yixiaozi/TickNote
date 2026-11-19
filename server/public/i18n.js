@@ -71,9 +71,7 @@
       "landing.meta_sessions": "synced sessions",
       "landing.meta_public": "public pages",
       "landing.preview_title": "Time stats · 2 PM",
-      "landing.preview_controls": "Min · Pin · Lock",
-      "landing.preview_round": "R 12",
-      "landing.preview_note_hint": "What are you doing…",
+      "landing.preview_controls": "Min Pin Lock Top",
       "landing.preview_row1_note": "Fixed a few UI issues",
       "landing.preview_row2_note": "Reviewed next week’s report",
       "landing.preview_row3_note": "Synced to Timeline cloud",
@@ -83,19 +81,6 @@
       "landing.preview_mins_6_4": "6.4 min",
       "landing.preview_hint":
         "Desktop records time; the website handles sync, stats, and public pages.",
-      "landing.moments_kicker": "Quiet tools",
-      "landing.moments_title": "Three things TickNote does well",
-      "landing.moments_sub":
-        "Record on the desktop. Sync everywhere. Share only when you choose.",
-      "landing.moment1_title": "Record",
-      "landing.moment1_body":
-        "A one-minute loop sits in the corner. Each round is a chance to note what you were actually doing—without opening another dashboard.",
-      "landing.moment2_title": "Sync",
-      "landing.moment2_body":
-        "Work PC and laptop keep their own notes. Sign in once; they pull, push, and merge by update time so your day stays whole.",
-      "landing.moment3_title": "Share",
-      "landing.moment3_body":
-        "Turn on a public page when you want. Visitors see <code>/username/public</code>—private by default, intentional when shared.",
       "landing.features_title": "Built for quick notes",
       "landing.features_sub": "Stays out of your way, but ready when you need it.",
       "landing.tag_desktop": "Desktop",
@@ -105,9 +90,6 @@
       "landing.tag_portable": "Portable",
       "landing.tag_web": "Web",
       "landing.tag_mcp": "MCP",
-      "landing.extra_mcp": "AI-readable timeline API",
-      "landing.extra_portable": "Choose your data folder",
-      "landing.extra_web": "Dashboard charts & settings",
       "landing.f1_title": "1-minute loop countdown",
       "landing.f1_body":
         "One round per minute—great for Pomodoro variants, short focus, or simply asking “what am I doing this minute?”",
@@ -129,7 +111,6 @@
       "landing.f7_title": "Timeline API for AI",
       "landing.f7_body":
         "Create a token in Settings, then connect <code>/mcp</code> to Cursor and similar clients to query stats and notes.",
-      "landing.how_kicker": "Start",
       "landing.how_title": "Three steps to start",
       "landing.how_sub": "After signing up, enter the sync URL in the desktop app.",
       "landing.step1_title": "1. Create an account",
@@ -141,7 +122,6 @@
       "landing.step3_title": "3. Go public when ready",
       "landing.step3_body":
         "In website Settings, turn on the public switch and share <code>/your-username/public</code>.",
-      "landing.public_kicker": "Gallery",
       "landing.public_title": "Public page examples",
       "landing.public_sub":
         "Users who enabled sharing appear here (off by default—privacy first).",
@@ -297,9 +277,7 @@
       "landing.meta_sessions": "同步记录",
       "landing.meta_public": "公开主页",
       "landing.preview_title": "时间统计 · 14 点",
-      "landing.preview_controls": "迷你 · 置顶 · 锁定",
-      "landing.preview_round": "第 12 轮",
-      "landing.preview_note_hint": "正在做什么…",
+      "landing.preview_controls": "迷 机 固 顶",
       "landing.preview_row1_note": "又挑了几个界面问题",
       "landing.preview_row2_note": "看了下周报表和进度表",
       "landing.preview_row3_note": "同步到 Timeline 云端",
@@ -309,18 +287,6 @@
       "landing.preview_mins_6_4": "6.4分",
       "landing.preview_hint":
         "桌面端负责记录，网站负责同步、统计与公开主页。",
-      "landing.moments_kicker": "安静工具",
-      "landing.moments_title": "TickNote 做好的三件事",
-      "landing.moments_sub": "桌面随手记，处处可同步，公开与否由你定。",
-      "landing.moment1_title": "记录",
-      "landing.moment1_body":
-        "一分钟循环安静待在角落。每轮都是一次备注的机会——不必再打开另一个仪表盘。",
-      "landing.moment2_title": "同步",
-      "landing.moment2_body":
-        "公司电脑与笔记本各自保留备注。登录一次后拉取、推送，按更新时间合并，一天仍是完整的。",
-      "landing.moment3_title": "分享",
-      "landing.moment3_body":
-        "需要时再打开公开主页。访客看到 <code>/用户名/public</code>——默认私密，分享才可见。",
       "landing.features_title": "为「随手记」做的功能",
       "landing.features_sub": "不打扰工作流，但关键时够用。",
       "landing.tag_desktop": "桌面端",
@@ -330,9 +296,6 @@
       "landing.tag_portable": "便携",
       "landing.tag_web": "网页",
       "landing.tag_mcp": "MCP",
-      "landing.extra_mcp": "给 AI 读的时间线接口",
-      "landing.extra_portable": "数据目录自选",
-      "landing.extra_web": "控制台图表与设置",
       "landing.f1_title": "1 分钟循环倒计时",
       "landing.f1_body":
         "每分钟一轮，适合番茄变体、短时专注，或只是提醒自己「这一分钟在做什么」。",
@@ -354,7 +317,6 @@
       "landing.f7_title": "给 AI 用的时间线接口",
       "landing.f7_body":
         "在设置里生成令牌后，可把 <code>/mcp</code> 接到 Cursor 等客户端，查询统计与备注。",
-      "landing.how_kicker": "上手",
       "landing.how_title": "三步开始",
       "landing.how_sub": "注册账号后，桌面端填入同步地址即可。",
       "landing.step1_title": "1. 注册账号",
@@ -366,7 +328,6 @@
       "landing.step3_title": "3. 需要时公开",
       "landing.step3_body":
         "在网站「设置」打开公开开关，分享 <code>/你的用户名/public</code>。",
-      "landing.public_kicker": "示例",
       "landing.public_title": "公开主页示例",
       "landing.public_sub":
         "已开启公开的用户会出现在这里（默认关闭，隐私优先）。",

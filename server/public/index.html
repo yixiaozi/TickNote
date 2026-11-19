@@ -13,18 +13,18 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#090c10" />
+    <meta name="theme-color" content="#3dd6c6" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="landing">
+  <body>
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="/">
-          <img class="brand-mark" src="/icon.png" alt="" width="30" height="30" />
+          <img class="brand-mark" src="/icon.png" alt="" width="28" height="28" />
           <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="#moments" data-i18n="nav.features">Features</a>
+          <a href="#features" data-i18n="nav.features">Features</a>
           <a href="#how" data-i18n="nav.how">How it works</a>
           <a href="#public" data-i18n="nav.public">Public pages</a>
           <label class="lang-switch" data-i18n-aria="lang.label">
@@ -35,29 +35,45 @@
             </select>
           </label>
           <a class="btn ghost" href="/login" data-i18n="nav.login">Log in</a>
-          <a class="btn primary" href="/login#register" data-i18n="nav.register"
-            >Sign up free</a
-          >
+          <a class="btn primary" href="/login#register" data-i18n="nav.register">Sign up free</a>
         </nav>
       </div>
     </header>
 
-    <section class="hero-stage">
-      <div class="hero-visual" aria-hidden="true">
-        <div class="hero-product">
-          <div class="widget-preview">
-            <div class="widget-ring"></div>
-            <div class="widget-time">0:42</div>
-            <div class="widget-round" data-i18n="landing.preview_round">R 12</div>
-            <div class="widget-note" data-i18n="landing.preview_note_hint">
-              What are you doing…
-            </div>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1 data-i18n-html="landing.hero_title">A light countdown that<br />turns spare minutes into notes</h1>
+        <p data-i18n="landing.hero_body">
+          TickNote runs quietly in a desktop corner with a 1-minute loop. Jot a note, review your day, sync across machines, or share a public stats page with colleagues and friends.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="/login#register" data-i18n="landing.cta_start">Get started</a>
+          <a class="btn soft" href="/app" data-i18n="landing.cta_app">Open dashboard</a>
+          <a class="btn ghost" href="#features" data-i18n="landing.cta_features">See features</a>
+        </div>
+        <div class="hero-meta">
+          <div>
+            <strong id="metaUsers">—</strong>
+            <span data-i18n="landing.meta_users">registered users</span>
           </div>
-          <div class="timeline-preview">
-            <div class="timeline-preview-head">
-              <span data-i18n="landing.preview_title">Time stats · 2 PM</span>
-              <span data-i18n="landing.preview_controls">Min · Pin · Lock</span>
-            </div>
+          <div>
+            <strong id="metaSessions">—</strong>
+            <span data-i18n="landing.meta_sessions">synced sessions</span>
+          </div>
+          <div>
+            <strong id="metaPublic">—</strong>
+            <span data-i18n="landing.meta_public">public pages</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hero-card">
+        <div class="preview-window">
+          <div class="preview-titlebar">
+            <span data-i18n="landing.preview_title">Time stats · 2 PM</span>
+            <span data-i18n="landing.preview_controls">Min Pin Lock Top</span>
+          </div>
+          <div class="preview-body">
             <div class="preview-row">
               <span class="muted">14:10→14:19</span>
               <span class="mins" data-i18n="landing.preview_mins_8_8">8.8 min</span>
@@ -66,175 +82,103 @@
             <div class="preview-row">
               <span class="muted">14:06→14:10</span>
               <span class="mins" data-i18n="landing.preview_mins_4_5">4.5 min</span>
-              <span data-i18n="landing.preview_row2_note"
-                >Reviewed next week’s report</span
-              >
+              <span data-i18n="landing.preview_row2_note">Reviewed next week’s report</span>
             </div>
             <div class="preview-row">
               <span class="muted">13:58→14:04</span>
               <span class="mins" data-i18n="landing.preview_mins_6_4">6.4 min</span>
-              <span data-i18n="landing.preview_row3_note"
-                >Synced to Timeline cloud</span
-              >
+              <span data-i18n="landing.preview_row3_note">Synced to Timeline cloud</span>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="hero-copy">
-        <p class="hero-brand">TickNote</p>
-        <h1 data-i18n-html="landing.hero_title">
-          A light countdown that<br />turns spare minutes into notes
-        </h1>
-        <p data-i18n="landing.hero_body">
-          TickNote runs quietly in a desktop corner with a 1-minute loop. Jot a
-          note, review your day, sync across machines, or share a public stats
-          page with colleagues and friends.
+        <p class="hint" style="margin: 14px 0 0" data-i18n="landing.preview_hint">
+          Desktop records time; the website handles sync, stats, and public pages.
         </p>
-        <div class="hero-actions">
-          <a
-            class="btn primary"
-            href="/login#register"
-            data-i18n="landing.cta_start"
-            >Get started</a
-          >
-          <a class="btn ghost" href="/app" data-i18n="landing.cta_app"
-            >Open dashboard</a
-          >
-        </div>
-      </div>
+      </aside>
     </section>
 
-    <section class="meta-band" aria-label="Stats">
-      <div class="meta-band-inner">
-        <div class="meta-item">
-          <strong id="metaUsers">—</strong>
-          <span data-i18n="landing.meta_users">registered users</span>
-        </div>
-        <div class="meta-item">
-          <strong id="metaSessions">—</strong>
-          <span data-i18n="landing.meta_sessions">synced sessions</span>
-        </div>
-        <div class="meta-item">
-          <strong id="metaPublic">—</strong>
-          <span data-i18n="landing.meta_public">public pages</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="section reveal" id="moments">
-      <p class="section-kicker" data-i18n="landing.moments_kicker">Quiet tools</p>
+    <section class="section" id="features">
       <div class="section-head">
         <div>
-          <h2 data-i18n="landing.moments_title">Three things TickNote does well</h2>
-          <p class="sub" data-i18n="landing.moments_sub">
-            Record on the desktop. Sync everywhere. Share only when you choose.
-          </p>
+          <h2 data-i18n="landing.features_title">Built for quick notes</h2>
+          <p class="sub" data-i18n="landing.features_sub">Stays out of your way, but ready when you need it.</p>
         </div>
       </div>
-      <div class="moment-grid">
-        <article class="moment">
-          <div class="moment-index">01</div>
-          <div>
-            <h2 data-i18n="landing.moment1_title">Record</h2>
-            <p data-i18n="landing.moment1_body">
-              A one-minute loop sits in the corner. Each round is a chance to note
-              what you were actually doing—without opening another dashboard.
-            </p>
-          </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_desktop">Desktop</span>
+          <h3 data-i18n="landing.f1_title">1-minute loop countdown</h3>
+          <p data-i18n="landing.f1_body">One round per minute—great for Pomodoro variants, short focus, or simply asking “what am I doing this minute?”</p>
         </article>
-        <article class="moment">
-          <div class="moment-index">02</div>
-          <div>
-            <h2 data-i18n="landing.moment2_title">Sync</h2>
-            <p data-i18n="landing.moment2_body">
-              Work PC and laptop keep their own notes. Sign in once; they pull,
-              push, and merge by update time so your day stays whole.
-            </p>
-          </div>
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_stats">Stats</span>
+          <h3 data-i18n="landing.f2_title">Hourly timeline view</h3>
+          <p data-i18n="landing.f2_body">Fill or skip blank slots; mini mode, always-on-top, lock, and opacity controls included.</p>
         </article>
-        <article class="moment">
-          <div class="moment-index">03</div>
-          <div>
-            <h2 data-i18n="landing.moment3_title">Share</h2>
-            <p data-i18n-html="landing.moment3_body">
-              Turn on a public page when you want. Visitors see
-              <code>/username/public</code>—private by default, intentional when
-              shared.
-            </p>
-          </div>
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_sync">Sync</span>
+          <h3 data-i18n="landing.f3_title">Two-way multi-device merge</h3>
+          <p data-i18n="landing.f3_body">Work PC and laptop each keep notes; sign in once and they pull then push, merging by update time.</p>
         </article>
-      </div>
-      <div class="extras-row">
-        <span class="extra-chip"
-          ><strong data-i18n="landing.tag_mcp">MCP</strong
-          ><span data-i18n="landing.extra_mcp">AI-readable timeline API</span></span
-        >
-        <span class="extra-chip"
-          ><strong data-i18n="landing.tag_portable">Portable</strong
-          ><span data-i18n="landing.extra_portable">Choose your data folder</span></span
-        >
-        <span class="extra-chip"
-          ><strong data-i18n="landing.tag_web">Web</strong
-          ><span data-i18n="landing.extra_web">Dashboard charts &amp; settings</span></span
-        >
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_public">Public</span>
+          <h3 data-i18n="landing.f4_title">Optional public page</h3>
+          <p data-i18n-html="landing.f4_body">When enabled, visit <code>/username/public</code> to see the stats and recent sessions you choose to share.</p>
+        </article>
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_portable">Portable</span>
+          <h3 data-i18n="landing.f5_title">Choose your data folder</h3>
+          <p data-i18n="landing.f5_body">Pick a data directory on first launch, or use a portable install to carry settings between machines.</p>
+        </article>
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_web">Web</span>
+          <h3 data-i18n="landing.f6_title">Dashboard &amp; settings</h3>
+          <p data-i18n="landing.f6_body">Review charts and device breakdowns on the web, and set display name, bio, and public-page visibility.</p>
+        </article>
+        <article class="feature">
+          <span class="tag" data-i18n="landing.tag_mcp">MCP</span>
+          <h3 data-i18n="landing.f7_title">Timeline API for AI</h3>
+          <p data-i18n-html="landing.f7_body">Create a token in Settings, then connect <code>/mcp</code> to Cursor and similar clients to query stats and notes.</p>
+        </article>
       </div>
     </section>
 
-    <section class="section reveal" id="how">
-      <p class="section-kicker" data-i18n="landing.how_kicker">Start</p>
+    <section class="section" id="how">
       <div class="section-head">
         <div>
           <h2 data-i18n="landing.how_title">Three steps to start</h2>
-          <p class="sub" data-i18n="landing.how_sub">
-            After signing up, enter the sync URL in the desktop app.
-          </p>
+          <p class="sub" data-i18n="landing.how_sub">After signing up, enter the sync URL in the desktop app.</p>
         </div>
       </div>
       <div class="step-grid">
         <article class="step">
           <h3 data-i18n="landing.step1_title">1. Create an account</h3>
-          <p data-i18n="landing.step1_body">
-            Sign up free here—your username also becomes your public page path.
-          </p>
+          <p data-i18n="landing.step1_body">Sign up free here—your username also becomes your public page path.</p>
         </article>
         <article class="step">
           <h3 data-i18n="landing.step2_title">2. Sign in on desktop</h3>
-          <p data-i18n="landing.step2_body">
-            Open TickNote → Settings → Sync, enter the server URL, and log in with
-            the same account.
-          </p>
+          <p data-i18n="landing.step2_body">Open TickNote → Settings → Sync, enter the server URL, and log in with the same account.</p>
         </article>
         <article class="step">
           <h3 data-i18n="landing.step3_title">3. Go public when ready</h3>
-          <p data-i18n-html="landing.step3_body">
-            In website Settings, turn on the public switch and share
-            <code>/your-username/public</code>.
-          </p>
+          <p data-i18n-html="landing.step3_body">In website Settings, turn on the public switch and share <code>/your-username/public</code>.</p>
         </article>
       </div>
     </section>
 
-    <section class="section reveal" id="public">
+    <section class="section" id="public">
       <div class="section-head">
         <div>
-          <p class="section-kicker" data-i18n="landing.public_kicker">Gallery</p>
           <h2 data-i18n="landing.public_title">Public page examples</h2>
-          <p class="sub" data-i18n="landing.public_sub">
-            Users who enabled sharing appear here (off by default—privacy first).
-          </p>
+          <p class="sub" data-i18n="landing.public_sub">Users who enabled sharing appear here (off by default—privacy first).</p>
         </div>
-        <a class="btn ghost" href="/settings" data-i18n="landing.public_cta"
-          >Open public settings</a
-        >
+        <a class="btn ghost" href="/settings" data-i18n="landing.public_cta">Open public settings</a>
       </div>
-      <div id="publicUsers" class="public-strip"></div>
+      <div id="publicUsers" class="public-grid"></div>
     </section>
 
     <footer class="footer">
-      <div data-i18n="landing.footer_tagline">
-        TickNote Timeline · Time tracking &amp; sync
-      </div>
+      <div data-i18n="landing.footer_tagline">TickNote Timeline · Time tracking &amp; sync</div>
       <div>
         <a href="/login" data-i18n="nav.login">Log in</a>
         ·

@@ -19,7 +19,7 @@
           <span data-i18n="brand.name">TickNote Timeline</span>
         </a>
         <nav class="nav-links">
-          <a href="/app" data-i18n="nav.app">Dashboard</a>
+          <a href="/app" class="nav-current" data-i18n="nav.app">Dashboard</a>
           <a href="/settings" data-i18n="nav.settings">Settings</a>
           <a id="publicLink" href="#" class="hidden" data-i18n="nav.my_public">My public page</a>
           <label class="lang-switch" data-i18n-aria="lang.label">
@@ -39,6 +39,7 @@
     <main class="page">
       <header class="topbar">
         <div>
+          <p class="page-kicker" data-i18n="nav.app">Dashboard</p>
           <h1 data-i18n="app.heading">Dashboard</h1>
           <p id="welcome" class="sub"></p>
         </div>
@@ -54,20 +55,20 @@
 
       <section class="cards meter-row" id="summaryCards"></section>
 
-      <section class="panel">
-        <h2 data-i18n="app.days_title">By day (recent)</h2>
-        <div id="dayChart" class="bar-list"></div>
-      </section>
-
-      <section class="panel">
-        <h2 data-i18n="app.hours_title">Distribution by hour</h2>
-        <div id="hourChart" class="bar-list hour-grid"></div>
-      </section>
-
-      <section class="panel">
-        <h2 data-i18n="app.devices_title">Devices</h2>
-        <div id="deviceChart" class="bar-list"></div>
-      </section>
+      <div class="dash-grid">
+        <section class="panel dash-span-2">
+          <h2 data-i18n="app.days_title">By day (recent)</h2>
+          <div id="dayChart" class="bar-list"></div>
+        </section>
+        <section class="panel">
+          <h2 data-i18n="app.hours_title">Distribution by hour</h2>
+          <div id="hourChart" class="bar-list hour-grid"></div>
+        </section>
+        <section class="panel">
+          <h2 data-i18n="app.devices_title">Devices</h2>
+          <div id="deviceChart" class="bar-list"></div>
+        </section>
+      </div>
 
       <section class="panel">
         <div class="panel-head">
