@@ -10,6 +10,12 @@
 - 迷你模式、置顶、透明度、固定位置
 - 异常退出也会尽量保留最后一段记录
 
+## 移动端（Expo）
+
+独立目录 [`mobile/`](./mobile/)，与网站 / 桌面共用 Timeline 同步。
+
+**只有 iPhone 时**：安装 App Store 的 Expo Go，在电脑执行 `cd mobile && npm start`（跨网加 `--tunnel`），扫码打开。完整步骤见 [`mobile/README.md`](./mobile/README.md)。
+
 ## 本地运行
 
 ```bash
