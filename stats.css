@@ -72,21 +72,23 @@ body.mini #hourEmpty {
 
 body.mini .record {
   padding: 5px 7px;
+  column-gap: 8px;
   row-gap: 2px;
 }
 
 body.mini .record-note {
   font-size: 12px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 body.mini .record-note:focus {
-  display: block;
-  -webkit-line-clamp: unset;
+  white-space: pre-wrap;
   overflow: auto;
+  text-overflow: clip;
   max-height: 72px;
 }
 
@@ -437,17 +439,19 @@ body.searching .nav-line {
 }
 
 .record-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* Shared columns across rows so time / duration / note edges line up. */
+  grid-template-columns: max-content max-content minmax(0, 1fr);
   gap: 4px;
   -webkit-app-region: no-drag;
 }
 
 .record {
   display: grid;
-  grid-template-columns: max-content max-content minmax(0, 1fr);
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: start;
-  column-gap: 0;
+  column-gap: 10px;
   row-gap: 1px;
   padding: 6px 8px;
   background: var(--panel);
@@ -460,7 +464,6 @@ body.searching .nav-line {
   display: grid;
   gap: 1px;
   padding-top: 1px;
-  padding-right: 6px;
 }
 
 .record-stats {
@@ -468,12 +471,10 @@ body.searching .nav-line {
   font-size: 12px;
   line-height: 1.35;
   padding-top: 1px;
-  padding-right: 12px;
   white-space: nowrap;
   color: var(--accent);
   font-weight: 650;
   text-align: left;
-  min-width: 0;
 }
 
 .search-hit {
@@ -495,10 +496,11 @@ body.searching .nav-line {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: center;
+  align-items: start;
   gap: 4px;
   min-width: 0;
   width: 100%;
+  padding-top: 1px;
 }
 
 .record-device {
@@ -569,14 +571,14 @@ body.searching .nav-line {
   flex: 1 1 0%;
   min-width: 0;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.35;
   outline: none;
   border-radius: 4px;
-  padding: 0 2px;
+  padding: 0;
 }
 
 .record-note:focus {

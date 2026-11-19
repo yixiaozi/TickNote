@@ -16,9 +16,8 @@ ringEl.style.strokeDasharray = String(CIRCUMFERENCE);
 
 /** @type {AudioContext | null} */
 let audioCtx = null;
-/** Active countdown elapsed; sleep gaps are not counted. */
+/** Elapsed from session start (wall clock; sleep/lock still count). */
 let activeElapsedMs = 0;
-let lastWallTick = Date.now();
 let sessionStartedAt = new Date();
 let completedLoops = 0;
 let lastDisplaySec = -1;
@@ -27,7 +26,6 @@ let zeroHoldUntil = 0;
 let tickSoundEnabled = true;
 let resetting = false;
 let lastDraftSaveAt = 0;
-const SLEEP_GAP_MS = 2500;
 
 function applyLocale(locale) {
   setLocale(locale || "en");
@@ -114,14 +112,8 @@ function renderLoopCount(loops) {
 }
 
 function syncActiveElapsed() {
-  const wallNow = Date.now();
-  let delta = wallNow - lastWallTick;
-  lastWallTick = wallNow;
-  // Sleep / long stall: do not add the paused wall time to rounds.
-  if (delta < 0 || delta > SLEEP_GAP_MS) {
-    delta = 0;
-  }
-  activeElapsedMs += delta;
+  // Rounds and display follow wall-clock start→now (same basis as saved minutes).
+  activeElapsedMs = Math.max(0, Date.now() - sessionStartedAt.getTime());
   return activeElapsedMs;
 }
 
@@ -176,9 +168,8 @@ async function resetCountdown() {
   try {
     await saveCurrentSession();
     ensureAudio();
-    activeElapsedMs = 0;
-    lastWallTick = Date.now();
     sessionStartedAt = new Date();
+    activeElapsedMs = 0;
     completedLoops = 0;
     lastDisplaySec = -1;
     lastCompletedLoops = -1;
@@ -353,6 +344,15 @@ if (window.countdownApi?.onFlushDraft) {
   });
 }
 
+/** Called by main process on quit: persist current round before exit. */
+window.__ticknoteFlushForQuit = async function flushForQuit() {
+  try {
+    await saveCurrentSession();
+  } catch {
+    persistDraft(true);
+  }
+};
+
 if (window.countdownApi?.onTickSoundChange) {
   window.countdownApi.onTickSoundChange((enabled) => {
     tickSoundEnabled = enabled;
@@ -413,15 +413,6 @@ document.addEventListener(
 if (noteInput) {
   noteInput.addEventListener("contextmenu", blockContextMenu, true);
 }
-
-document.addEventListener("visibilitychange", () => {
-  // After sleep/lock, reset wall baseline so the next frame doesn't count downtime.
-  lastWallTick = Date.now();
-});
-
-window.addEventListener("focus", () => {
-  lastWallTick = Date.now();
-});
 
 renderLoopCount(0);
 syncNoteInputHeight();

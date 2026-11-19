@@ -61,11 +61,41 @@ function escapeHtml(text) {
 function formatDuration(minutes) {
   const total = Math.round((Number(minutes) || 0) * 10) / 10;
   if (total < 60) return t("duration.minutes", { n: total });
-  const h = Math.floor(total / 60);
-  const m = Math.round((total - h * 60) * 10) / 10;
-  return m > 0
-    ? t("duration.hours_minutes", { h, m })
-    : t("duration.hours", { h });
+
+  const MIN_HOUR = 60;
+  const MIN_DAY = 60 * 24;
+  const MIN_MONTH = MIN_DAY * 30;
+  const MIN_YEAR = MIN_DAY * 365;
+
+  if (total < MIN_DAY) {
+    const h = Math.floor(total / MIN_HOUR);
+    const m = Math.round((total - h * MIN_HOUR) * 10) / 10;
+    return m > 0
+      ? t("duration.hours_minutes", { h, m })
+      : t("duration.hours", { h });
+  }
+
+  if (total < MIN_MONTH) {
+    const d = Math.floor(total / MIN_DAY);
+    const h = Math.floor((total - d * MIN_DAY) / MIN_HOUR);
+    return h > 0
+      ? t("duration.days_hours", { d, h })
+      : t("duration.days", { d });
+  }
+
+  if (total < MIN_YEAR) {
+    const mo = Math.floor(total / MIN_MONTH);
+    const d = Math.floor((total - mo * MIN_MONTH) / MIN_DAY);
+    return d > 0
+      ? t("duration.months_days", { mo, d })
+      : t("duration.months", { mo });
+  }
+
+  const y = Math.floor(total / MIN_YEAR);
+  const mo = Math.floor((total - y * MIN_YEAR) / MIN_MONTH);
+  return mo > 0
+    ? t("duration.years_months", { y, mo })
+    : t("duration.years", { y });
 }
 
 function formatClock(iso) {

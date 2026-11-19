@@ -29,6 +29,12 @@
       "duration.minutes": "{n} min",
       "duration.hours": "{h} h",
       "duration.hours_minutes": "{h} h {m} min",
+      "duration.days": "{d} d",
+      "duration.days_hours": "{d} d {h} h",
+      "duration.months": "{mo} mo",
+      "duration.months_days": "{mo} mo {d} d",
+      "duration.years": "{y} y",
+      "duration.years_months": "{y} y {mo} mo",
 
       "main.tick_on": "Tick sound: on",
       "main.tick_off": "Tick sound: off",
@@ -241,6 +247,12 @@
       "duration.minutes": "{n}分",
       "duration.hours": "{h}小时",
       "duration.hours_minutes": "{h}小时{m}分",
+      "duration.days": "{d}天",
+      "duration.days_hours": "{d}天{h}小时",
+      "duration.months": "{mo}个月",
+      "duration.months_days": "{mo}个月{d}天",
+      "duration.years": "{y}年",
+      "duration.years_months": "{y}年{mo}个月",
 
       "main.tick_on": "滴答声：开",
       "main.tick_off": "滴答声：关",
@@ -467,10 +479,37 @@
     const raw = Math.max(0, Number(minutes) || 0);
     const total = Math.round(raw * 10) / 10;
     if (total < 60) return t("duration.minutes", { n: total });
-    const hours = Math.floor(total / 60);
-    const mins = Math.round((total - hours * 60) * 10) / 10;
-    if (mins <= 0) return t("duration.hours", { h: hours });
-    return t("duration.hours_minutes", { h: hours, m: mins });
+
+    const MIN_HOUR = 60;
+    const MIN_DAY = 60 * 24;
+    const MIN_MONTH = MIN_DAY * 30;
+    const MIN_YEAR = MIN_DAY * 365;
+
+    if (total < MIN_DAY) {
+      const hours = Math.floor(total / MIN_HOUR);
+      const mins = Math.round((total - hours * MIN_HOUR) * 10) / 10;
+      if (mins <= 0) return t("duration.hours", { h: hours });
+      return t("duration.hours_minutes", { h: hours, m: mins });
+    }
+
+    if (total < MIN_MONTH) {
+      const days = Math.floor(total / MIN_DAY);
+      const hours = Math.floor((total - days * MIN_DAY) / MIN_HOUR);
+      if (hours <= 0) return t("duration.days", { d: days });
+      return t("duration.days_hours", { d: days, h: hours });
+    }
+
+    if (total < MIN_YEAR) {
+      const months = Math.floor(total / MIN_MONTH);
+      const days = Math.floor((total - months * MIN_MONTH) / MIN_DAY);
+      if (days <= 0) return t("duration.months", { mo: months });
+      return t("duration.months_days", { mo: months, d: days });
+    }
+
+    const years = Math.floor(total / MIN_YEAR);
+    const months = Math.floor((total - years * MIN_YEAR) / MIN_MONTH);
+    if (months <= 0) return t("duration.years", { y: years });
+    return t("duration.years_months", { y: years, mo: months });
   }
 
   function applyI18n(root) {

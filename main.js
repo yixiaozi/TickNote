@@ -872,8 +872,9 @@ function pinMainWindow() {
 function applyStatsWindowPrefs() {
   if (!statsWindow || statsWindow.isDestroyed()) return;
 
-  // Use screen-saver level so pinned stats stays above ordinary apps on Windows.
-  statsWindow.setAlwaysOnTop(Boolean(statsPrefs.alwaysOnTop), "screen-saver");
+  // "floating" stays above normal apps but remains capturable by Win screenshots.
+  // Avoid "screen-saver" — that layer sits above snipping tools and often won't capture.
+  statsWindow.setAlwaysOnTop(Boolean(statsPrefs.alwaysOnTop), "floating");
   statsWindow.setOpacity(statsPrefs.opacity);
   statsWindow.setMovable(!statsPrefs.locked);
   statsWindow.setResizable(!statsPrefs.mini);
@@ -1030,7 +1031,16 @@ function sessionRangeMs(session) {
   };
 }
 
-/** Merge back-to-back sessions with the same note (and device when both set). */
+/** True when ranges overlap or touch within slack (includes containment). */
+function rangesOverlapOrTouch(aStart, aEnd, bStart, bEnd, slack = ADJACENT_MERGE_MS) {
+  const a0 = Math.min(aStart, aEnd);
+  const a1 = Math.max(aStart, aEnd);
+  const b0 = Math.min(bStart, bEnd);
+  const b1 = Math.max(bStart, bEnd);
+  return a0 <= b1 + slack && b0 <= a1 + slack;
+}
+
+/** Merge overlapping / back-to-back sessions with the same note (and device). */
 function mergeAdjacentIdenticalSessions(sessions) {
   if (!Array.isArray(sessions) || sessions.length < 2) {
     return { sessions: sessions || [], changed: false };
@@ -1067,28 +1077,26 @@ function mergeAdjacentIdenticalSessions(sessions) {
         if (device && otherDevice && device !== otherDevice) continue;
 
         const { start: oStart, end: oEnd } = sessionRangeMs(other);
-        const abuts =
-          Math.abs(oStart - curEnd) <= ADJACENT_MERGE_MS ||
-          Math.abs(curStart - oEnd) <= ADJACENT_MERGE_MS;
-        if (!abuts) continue;
+        if (!rangesOverlapOrTouch(curStart, curEnd, oStart, oEnd)) continue;
 
         const newStart = Math.min(curStart, oStart);
         const newEnd = Math.max(curEnd, oEnd);
         const startedAt = new Date(newStart).toISOString();
         const endedAt = new Date(newEnd).toISOString();
+        const curRounds = Math.max(0, Number(cur.rounds) || 0);
+        const otherRounds = Math.max(0, Number(other.rounds) || 0);
+        const interiorOverlap = Math.min(curEnd, oEnd) > Math.max(curStart, oStart);
         cur = {
           ...cur,
           note: cur.note || other.note || "",
           startedAt,
           endedAt,
-          minutes: minutesFromRange(
-            startedAt,
-            endedAt,
-            (Number(cur.minutes) || 0) + (Number(other.minutes) || 0)
-          ),
-          rounds:
-            Math.max(0, Number(cur.rounds) || 0) +
-            Math.max(0, Number(other.rounds) || 0),
+          // Wall-clock span is the source of truth (do not sum overlapping minutes).
+          minutes: minutesFromRange(startedAt, endedAt, 0),
+          // Overlap (e.g. quit+draft duplicate): keep the denser rounds; abut: sum.
+          rounds: interiorOverlap
+            ? Math.max(curRounds, otherRounds)
+            : curRounds + otherRounds,
           device: device || otherDevice,
           updatedAt: new Date().toISOString(),
         };
@@ -1195,12 +1203,12 @@ function isMeaningful(session) {
   return minutes >= 0.2;
 }
 
-/** Promote unfinished draft into permanent history after crash/force quit. */
-function consumeDraftOnStartup() {
+/** Promote unfinished draft into permanent history. Returns true if saved. */
+function promoteDraftToSession() {
   const draft = loadDraft();
   if (!isMeaningful(draft)) {
     clearDraft();
-    return;
+    return false;
   }
 
   const sessions = loadSessions();
@@ -1212,6 +1220,13 @@ function consumeDraftOnStartup() {
   );
   saveSessions(sessions);
   clearDraft();
+  broadcastSessions(sessions);
+  return true;
+}
+
+/** Promote unfinished draft into permanent history after crash/force quit. */
+function consumeDraftOnStartup() {
+  promoteDraftToSession();
 }
 
 function openSettingsWindow() {
@@ -1330,15 +1345,8 @@ function openStatsWindow() {
     statsWindow?.show();
   });
 
-  statsWindow.on("blur", () => {
-    if (!statsPrefs.alwaysOnTop) return;
-    setTimeout(applyStatsWindowPrefs, 0);
-    setTimeout(applyStatsWindowPrefs, 80);
-    setTimeout(applyStatsWindowPrefs, 250);
-  });
-  statsWindow.on("focus", () => {
-    if (statsPrefs.alwaysOnTop) applyStatsWindowPrefs();
-  });
+  // Do not re-pin on blur/focus: repeatedly calling setAlwaysOnTop reshuffles the
+  // window layer and breaks screenshot tools while pinned.
 
   statsWindow.on("moved", () => {
     rememberStatsBounds();
@@ -1396,10 +1404,163 @@ function showAboutDialog() {
   });
 }
 
+/** Tiny 16×16 tray-menu icons drawn as RGBA bitmaps (black for light menus). */
+function makeTrayMenuIcon(draw, color = [28, 28, 28, 255]) {
+  const size = 16;
+  const buf = Buffer.alloc(size * size * 4, 0);
+  const set = (x, y, rgba = color) => {
+    const xi = Math.round(x);
+    const yi = Math.round(y);
+    if (xi < 0 || yi < 0 || xi >= size || yi >= size) return;
+    const i = (yi * size + xi) * 4;
+    buf[i] = rgba[0];
+    buf[i + 1] = rgba[1];
+    buf[i + 2] = rgba[2];
+    buf[i + 3] = rgba[3];
+  };
+  const line = (x0, y0, x1, y1) => {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (let s = 0; s <= steps; s += 1) {
+      const t = s / steps;
+      set(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
+    }
+  };
+  const fillRect = (x, y, w, h) => {
+    for (let yy = y; yy < y + h; yy += 1) {
+      for (let xx = x; xx < x + w; xx += 1) set(xx, yy);
+    }
+  };
+  draw({ set, line, fillRect, size });
+  return nativeImage.createFromBitmap(buf, { width: size, height: size });
+}
+
+const trayMenuIcons = {
+  show: () =>
+    makeTrayMenuIcon(({ line, fillRect }) => {
+      fillRect(3, 4, 10, 8);
+      line(3, 4, 13, 4);
+      line(3, 12, 13, 12);
+    }),
+  hide: () =>
+    makeTrayMenuIcon(({ line }) => {
+      line(3, 4, 13, 4);
+      line(3, 12, 13, 12);
+      line(3, 4, 3, 12);
+      line(13, 4, 13, 12);
+      line(4, 8, 12, 8);
+    }),
+  sound: () =>
+    makeTrayMenuIcon(({ line, fillRect }) => {
+      // Speaker — not a checkmark (checkbox already shows ✓).
+      fillRect(3, 6, 3, 4);
+      line(6, 6, 9, 3);
+      line(9, 3, 9, 13);
+      line(9, 13, 6, 10);
+      line(11, 5, 13, 4);
+      line(11, 8, 13, 8);
+      line(11, 11, 13, 12);
+    }),
+  stats: () =>
+    makeTrayMenuIcon(({ fillRect }) => {
+      fillRect(3, 10, 2, 3);
+      fillRect(7, 6, 2, 7);
+      fillRect(11, 3, 2, 10);
+    }),
+  settings: () =>
+    makeTrayMenuIcon(({ set, size }) => {
+      const cx = 7.5;
+      const cy = 7.5;
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= 3.2 * 3.2 && d2 <= 5.6 * 5.6) set(x, y);
+        }
+      }
+    }),
+  reset: () =>
+    makeTrayMenuIcon(({ line, set }) => {
+      line(4, 4, 12, 4);
+      line(12, 4, 12, 9);
+      line(12, 9, 5, 9);
+      set(5, 8);
+      set(4, 9);
+      set(5, 10);
+      line(4, 12, 11, 12);
+    }),
+  sync: () =>
+    makeTrayMenuIcon(({ line }) => {
+      line(3, 6, 11, 6);
+      line(11, 6, 9, 4);
+      line(11, 6, 9, 8);
+      line(13, 10, 5, 10);
+      line(5, 10, 7, 8);
+      line(5, 10, 7, 12);
+    }),
+  syncTime: () =>
+    makeTrayMenuIcon(({ set, line, size }) => {
+      const cx = 7.5;
+      const cy = 7.5;
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= 5.0 * 5.0 && d2 <= 6.2 * 6.2) set(x, y);
+        }
+      }
+      line(8, 8, 8, 4);
+      line(8, 8, 11, 10);
+    }),
+  site: () =>
+    makeTrayMenuIcon(({ line, set, size }) => {
+      const cx = 7.5;
+      const cy = 7.5;
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= 4.4 * 4.4 && d2 <= 5.6 * 5.6) set(x, y);
+        }
+      }
+      line(2, 8, 13, 8);
+      line(8, 2, 8, 13);
+    }),
+  about: () =>
+    makeTrayMenuIcon(({ fillRect, set }) => {
+      fillRect(7, 6, 2, 6);
+      set(7, 3);
+      set(8, 3);
+      set(7, 4);
+      set(8, 4);
+    }),
+  quit: () =>
+    makeTrayMenuIcon(({ line }) => {
+      line(4, 4, 12, 12);
+      line(12, 4, 4, 12);
+    }),
+  account: () =>
+    makeTrayMenuIcon(({ set, fillRect, size }) => {
+      const cx = 7.5;
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const dx = x - cx;
+          const dy = y - 5.5;
+          if (dx * dx + dy * dy <= 2.4 * 2.4) set(x, y);
+        }
+      }
+      fillRect(4, 10, 8, 3);
+    }),
+};
+
 function buildTrayMenu() {
+  const icons = trayMenuIcons;
   return Menu.buildFromTemplate([
     {
       label: t("tray.show"),
+      icon: icons.show(),
       click: () => {
         if (!mainWindow) return;
         mainWindow.show();
@@ -1408,6 +1569,7 @@ function buildTrayMenu() {
     },
     {
       label: t("tray.hide"),
+      icon: icons.hide(),
       click: () => {
         mainWindow?.hide();
       },
@@ -1415,6 +1577,7 @@ function buildTrayMenu() {
     { type: "separator" },
     {
       label: t("tray.tick"),
+      icon: icons.sound(),
       type: "checkbox",
       checked: tickSoundEnabled,
       click: (item) => {
@@ -1425,14 +1588,17 @@ function buildTrayMenu() {
     },
     {
       label: t("tray.stats"),
+      icon: icons.stats(),
       click: () => openStatsWindow(),
     },
     {
       label: t("tray.settings"),
+      icon: icons.settings(),
       click: () => openSettingsWindow(),
     },
     {
       label: t("tray.reset"),
+      icon: icons.reset(),
       click: () => {
         sendToRenderer("countdown:reset");
       },
@@ -1442,16 +1608,19 @@ function buildTrayMenu() {
       label: accountUsername
         ? t("tray.account_user", { name: accountUsername })
         : t("tray.account_none"),
+      icon: icons.account(),
       enabled: false,
     },
     {
       label: formatLastSyncLabel(),
+      icon: icons.syncTime(),
       enabled: false,
     },
     ...(accountToken
       ? [
           {
             label: t("tray.sync_now"),
+            icon: icons.sync(),
             click: () => {
               syncNow({ quiet: false }).catch(() => {});
             },
@@ -1460,6 +1629,7 @@ function buildTrayMenu() {
       : []),
     {
       label: t("tray.open_site"),
+      icon: icons.site(),
       click: () => {
         shell.openExternal(syncApiBase || TIMELINE_URL);
       },
@@ -1467,12 +1637,14 @@ function buildTrayMenu() {
     { type: "separator" },
     {
       label: t("tray.about"),
+      icon: icons.about(),
       click: () => {
         showAboutDialog();
       },
     },
     {
       label: t("tray.quit"),
+      icon: icons.quit(),
       click: () => {
         if (mainWindow) {
           mainWindow.setClosable(true);
@@ -1524,8 +1696,11 @@ function createWindow() {
   mainWindow.setClosable(false);
 
   mainWindow.loadFile("index.html");
-  // Main countdown HUD: never show a context menu.
+  // Main countdown HUD: never show a context menu (web or Windows system menu).
   mainWindow.webContents.on("context-menu", (event) => {
+    event.preventDefault();
+  });
+  mainWindow.on("system-context-menu", (event) => {
     event.preventDefault();
   });
   mainWindow.webContents.on("before-input-event", (event, input) => {
@@ -1534,9 +1709,13 @@ function createWindow() {
     }
   });
   if (process.platform === "win32" && typeof mainWindow.hookWindowMessage === "function") {
-    // WM_CONTEXTMENU / WM_RBUTTONUP — swallow native shell menu on frameless HUD.
-    mainWindow.hookWindowMessage(0x007b, () => {});
-    mainWindow.hookWindowMessage(0x0205, () => {});
+    // WM_CONTEXTMENU / WM_RBUTTONUP / WM_NCRBUTTON* — swallow native shell menu.
+    const swallow = () => Buffer.alloc(4);
+    mainWindow.hookWindowMessage(0x007b, swallow); // WM_CONTEXTMENU
+    mainWindow.hookWindowMessage(0x0204, swallow); // WM_RBUTTONDOWN
+    mainWindow.hookWindowMessage(0x0205, swallow); // WM_RBUTTONUP
+    mainWindow.hookWindowMessage(0x00a4, swallow); // WM_NCRBUTTONDOWN
+    mainWindow.hookWindowMessage(0x00a5, swallow); // WM_NCRBUTTONUP
   }
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -1959,12 +2138,47 @@ app.on("window-all-closed", () => {
   // Keep running in tray on all platforms; only tray Quit exits.
 });
 
-app.on("before-quit", () => {
-  sendToRenderer("countdown:flush-draft");
+let quitFinalizeDone = false;
+
+async function finalizeBeforeQuit() {
   if (mainWindow) {
     mainWindow.setClosable(true);
   }
-  if (localMcp) {
-    localMcp.stop().catch(() => {});
+
+  // Ask renderer to write the latest draft, then promote it into history.
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      await mainWindow.webContents.executeJavaScript(
+        `window.__ticknoteFlushForQuit
+          ? window.__ticknoteFlushForQuit()
+          : Promise.resolve()`,
+        true
+      );
+    }
+  } catch {
+    // Fall through to disk draft promotion.
   }
+
+  try {
+    promoteDraftToSession();
+  } catch {
+    // Best-effort; avoid blocking quit.
+  }
+
+  if (localMcp) {
+    try {
+      await localMcp.stop();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+app.on("before-quit", (event) => {
+  if (quitFinalizeDone) return;
+  event.preventDefault();
+  quitFinalizeDone = true;
+  finalizeBeforeQuit().finally(() => {
+    app.quit();
+  });
 });

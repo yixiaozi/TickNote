@@ -1,20 +1,22 @@
 {
   "name": "ticknote",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "1-minute looping desktop countdown with time notes and stats",
   "main": "main.js",
   "scripts": {
     "start": "node node_modules/electron/cli.js .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder --publish never",
-    "release": "electron-builder --publish always"
+    "pack": "electron-builder --dir --config.electronDist=node_modules/electron/dist --config.directories.output=dist-out",
+    "dist": "electron-builder --win portable --publish never --config.electronDist=node_modules/electron/dist --config.directories.output=dist-out",
+    "dist:deploy": "npm run dist && node scripts/deploy-ticknote.js",
+    "release": "electron-builder --publish always --config.electronDist=node_modules/electron/dist --config.directories.output=dist-out"
   },
   "build": {
     "appId": "com.ticknote.app",
     "productName": "TickNote",
     "copyright": "Copyright © TickNote",
+    "electronDist": "node_modules/electron/dist",
     "directories": {
-      "output": "dist",
+      "output": "dist-out",
       "buildResources": "assets"
     },
     "files": [

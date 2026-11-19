@@ -87,6 +87,52 @@ function escapeHtml(text) {
     .replaceAll('"', "&quot;");
 }
 
+/** Plain-text caret offset inside a contenteditable root. */
+function getCaretTextOffset(root) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !root.contains(sel.anchorNode)) return null;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.selectNodeContents(root);
+  range.setEnd(sel.anchorNode, sel.anchorOffset);
+  return range.toString().length;
+}
+
+function setCaretTextOffset(root, offset) {
+  if (!(root instanceof HTMLElement) || offset == null) return;
+  const target = Math.max(0, Number(offset) || 0);
+  const sel = window.getSelection();
+  if (!sel) return;
+
+  let remaining = target;
+  const place = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.textContent?.length || 0;
+      if (remaining <= len) {
+        const range = document.createRange();
+        range.setStart(node, remaining);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return true;
+      }
+      remaining -= len;
+      return false;
+    }
+    for (const child of node.childNodes) {
+      if (place(child)) return true;
+    }
+    return false;
+  };
+
+  if (!place(root)) {
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+}
+
 function pad(n) {
   return String(n).padStart(2, "0");
 }
@@ -649,22 +695,13 @@ function setSessions(sessions) {
     active instanceof HTMLElement && active.classList.contains("record-note")
       ? active
       : null;
-  const editingId = editingNote?.dataset.id || "";
-  const editingHtml = editingNote ? editingNote.innerHTML : "";
+
+  // While typing, skip DOM rebuild — it would jump the caret to the start.
+  if (editingNote) return;
+
   const listTop = recordListEl?.scrollTop || 0;
-
   render();
-
   if (recordListEl) recordListEl.scrollTop = listTop;
-  if (editingId) {
-    const restored = recordListEl?.querySelector(
-      `.record-note[data-id="${editingId.replace(/"/g, "")}"]`
-    );
-    if (restored instanceof HTMLElement) {
-      restored.innerHTML = editingHtml;
-      restored.focus();
-    }
-  }
 }
 
 async function saveNote(sessionId, note) {
@@ -727,10 +764,13 @@ allDayBtn?.addEventListener("click", () => {
 
 recordListEl.addEventListener("click", async (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
+  if (!(target instanceof Element)) return;
 
-  if (target.dataset.dismissGap) {
-    const id = target.dataset.dismissGap;
+  const dismissBtn = target.closest("[data-dismiss-gap]");
+  if (dismissBtn instanceof HTMLElement && dismissBtn.dataset.dismissGap) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = dismissBtn.dataset.dismissGap;
     await window.statsApi.dismissGap(id);
     dismissedGaps.add(id);
     dayTimelineCache = null;
@@ -738,8 +778,11 @@ recordListEl.addEventListener("click", async (event) => {
     return;
   }
 
-  if (target.dataset.fillGap) {
-    const article = target.closest(".record");
+  const fillBtn = target.closest("[data-fill-gap]");
+  if (fillBtn instanceof HTMLElement && fillBtn.dataset.fillGap) {
+    event.preventDefault();
+    event.stopPropagation();
+    const article = fillBtn.closest(".record");
     const noteEl = article?.querySelector(".record-note");
     if (noteEl instanceof HTMLElement) {
       await fillGapFromNote(noteEl, { force: true });
@@ -751,9 +794,11 @@ recordListEl.addEventListener("focusin", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   if (!target.classList.contains("record-note")) return;
-  // Flatten highlight marks before editing.
+  // Flatten highlight marks before editing (preserve caret).
   if (target.querySelector(".search-hit")) {
+    const offset = getCaretTextOffset(target);
     target.textContent = target.textContent || "";
+    setCaretTextOffset(target, offset);
   }
   if (target.dataset.gap !== "1") return;
   const text = (target.textContent || "").trim();

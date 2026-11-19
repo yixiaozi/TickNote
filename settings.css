@@ -1,10 +1,10 @@
 :root {
-  --bg: #0f141b;
-  --panel: #171d27;
-  --panel-2: #1c2431;
-  --line: #2a3342;
+  --bg: #0c1118;
+  --panel: #151b25;
+  --panel-2: #1a222e;
+  --line: rgba(255, 255, 255, 0.08);
   --text: #e8edf5;
-  --muted: #9aa6b8;
+  --muted: #8b98ab;
   --accent: #3dd6c6;
   --accent-2: #5b8def;
   --ok: #3ecf8e;
@@ -20,10 +20,11 @@ body {
   margin: 0;
   height: 100%;
   background:
-    radial-gradient(700px 280px at 0% 0%, rgba(61, 214, 198, 0.08), transparent 55%),
+    radial-gradient(720px 300px at 0% 0%, rgba(61, 214, 198, 0.1), transparent 55%),
+    radial-gradient(520px 260px at 100% 0%, rgba(91, 141, 239, 0.08), transparent 50%),
     var(--bg);
   color: var(--text);
-  font: 14px/1.45 "Segoe UI", "Microsoft YaHei", sans-serif;
+  font: 14px/1.45 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -33,13 +34,13 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 14px 16px 8px;
+  padding: 16px 18px 6px;
   -webkit-app-region: drag;
 }
 
 .titlebar-copy {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 h1,
@@ -71,7 +72,7 @@ h2 {
 .tabs {
   display: flex;
   gap: 6px;
-  padding: 4px 16px 12px;
+  padding: 6px 18px 12px;
   -webkit-app-region: no-drag;
 }
 
@@ -83,16 +84,17 @@ h2 {
   color: var(--muted);
   cursor: pointer;
   font: inherit;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .tab:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .tab.active {
   background: rgba(61, 214, 198, 0.14);
-  border-color: rgba(61, 214, 198, 0.28);
+  border-color: rgba(61, 214, 198, 0.3);
   color: #b8fff6;
 }
 
@@ -112,24 +114,38 @@ button {
   width: 30px;
   height: 30px;
   padding: 0;
-  background: #2a313c;
+  background: rgba(255, 255, 255, 0.08);
   font-size: 18px;
   line-height: 1;
 }
 
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 button.primary {
   background: linear-gradient(135deg, #2fc4b4, #4f7fe3);
+  box-shadow: 0 6px 18px rgba(47, 196, 180, 0.22);
 }
 
 button.ghost {
-  background: #243041;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
+  border: 1px solid var(--line);
+}
+
+button.ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 button.soft {
-  background: rgba(61, 214, 198, 0.16);
+  background: rgba(61, 214, 198, 0.14);
   color: #b8fff6;
   border: 1px solid rgba(61, 214, 198, 0.28);
+}
+
+button.soft:hover {
+  background: rgba(61, 214, 198, 0.2);
 }
 
 button:disabled {
@@ -141,10 +157,45 @@ button:disabled {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 4px 16px 12px;
+  padding: 2px 14px 14px 18px;
   display: grid;
   gap: 12px;
   align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(61, 214, 198, 0.35) transparent;
+}
+
+.content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(61, 214, 198, 0.28),
+    rgba(91, 141, 239, 0.28)
+  );
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(61, 214, 198, 0.5),
+    rgba(91, 141, 239, 0.5)
+  );
+  background-clip: padding-box;
+}
+
+.content::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .tab-panel {
@@ -157,12 +208,18 @@ button:disabled {
 }
 
 .card {
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03),
+    transparent 40%
+  ),
+    var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 16px;
+  padding: 16px;
   display: grid;
   gap: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .card-head {
@@ -176,7 +233,7 @@ button:disabled {
   flex: 0 0 auto;
   padding: 4px 9px;
   border-radius: 999px;
-  background: #2a313c;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
   font-size: 11px;
   font-weight: 650;
@@ -194,10 +251,10 @@ button:disabled {
 }
 
 .status-item {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
   background: var(--panel-2);
-  border: 1px solid rgba(42, 51, 66, 0.9);
+  border: 1px solid var(--line);
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -223,17 +280,19 @@ input,
 select {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #0d1218;
+  border-radius: 11px;
+  background: rgba(8, 12, 18, 0.9);
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input:focus,
 select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: rgba(61, 214, 198, 0.55);
+  box-shadow: 0 0 0 3px rgba(61, 214, 198, 0.12);
 }
 
 .actions {
@@ -246,10 +305,10 @@ select:focus {
 .path-box {
   display: grid;
   gap: 6px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
   background: var(--panel-2);
-  border: 1px solid rgba(42, 51, 66, 0.9);
+  border: 1px solid var(--line);
 }
 
 .path-box code,
@@ -267,7 +326,7 @@ select:focus {
   padding: 12px;
   border-radius: 12px;
   background: var(--panel-2);
-  border: 1px solid rgba(42, 51, 66, 0.9);
+  border: 1px solid var(--line);
 }
 
 .switch-row strong {
@@ -321,9 +380,9 @@ select:focus {
 .config-box {
   margin: 0;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--line);
-  background: #0d1218;
+  background: rgba(8, 12, 18, 0.9);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
@@ -331,12 +390,26 @@ select:focus {
   word-break: break-all;
   max-height: 150px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.config-box::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.config-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .token-once {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(61, 214, 198, 0.1);
   border: 1px solid rgba(61, 214, 198, 0.24);
   color: #b8fff6;
@@ -349,9 +422,14 @@ select:focus {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 12px 16px 16px;
-  border-top: 1px solid rgba(42, 51, 66, 0.85);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(
+    180deg,
+    rgba(12, 17, 24, 0.55),
+    rgba(12, 17, 24, 0.92)
+  );
+  backdrop-filter: blur(8px);
 }
 
 .msg {

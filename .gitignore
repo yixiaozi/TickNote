@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-build/
+dist-out/
+dist-out-*/
 _deploy_timeline.py
 _ssh_check.py
 *.log
