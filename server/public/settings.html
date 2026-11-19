@@ -8,10 +8,10 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#3dd6c6" />
+    <meta name="theme-color" content="#090c10" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="app-shell">
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="/">
@@ -28,7 +28,9 @@
               <option value="zh">中文</option>
             </select>
           </label>
-          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">Log out</button>
+          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">
+            Log out
+          </button>
         </nav>
       </div>
     </header>
@@ -37,94 +39,139 @@
       <header class="topbar">
         <div>
           <h1 data-i18n="settings.heading">Account settings</h1>
-          <p class="sub" data-i18n="settings.sub">Manage your profile and whether your timeline page is public.</p>
+          <p class="sub" data-i18n="settings.sub">
+            Manage your profile and whether your timeline page is public.
+          </p>
         </div>
       </header>
 
       <form id="settingsForm" class="settings-card">
-        <h2 data-i18n="settings.language_section">Language</h2>
-        <label>
-          <span data-i18n="lang.label">Language</span>
-          <select id="localeSelect" data-locale-select>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-        </label>
-        <p class="hint" data-i18n="settings.language_hint">Applies to the website UI. Saved in this browser.</p>
+        <section class="settings-section">
+          <h2 data-i18n="settings.language_section">Language</h2>
+          <label>
+            <span data-i18n="lang.label">Language</span>
+            <select id="localeSelect" data-locale-select>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <p class="hint" data-i18n="settings.language_hint">
+            Applies to the website UI. Saved in this browser.
+          </p>
+        </section>
 
-        <h2 data-i18n="settings.profile">Profile</h2>
-        <label>
-          <span data-i18n="settings.username">Username</span>
-          <input id="username" disabled />
-        </label>
-        <label>
-          <span data-i18n="settings.display_name">Display name</span>
-          <input
-            id="displayName"
-            maxlength="40"
-            data-i18n-placeholder="settings.display_name_ph"
-            placeholder="e.g. Alex"
-          />
-        </label>
-        <label>
-          <span data-i18n="settings.bio">Bio</span>
-          <textarea
-            id="bio"
-            maxlength="280"
-            data-i18n-placeholder="settings.bio_ph"
-            placeholder="One line about what you track"
-          ></textarea>
-        </label>
+        <section class="settings-section">
+          <h2 data-i18n="settings.profile">Profile</h2>
+          <label>
+            <span data-i18n="settings.username">Username</span>
+            <input id="username" disabled />
+          </label>
+          <label>
+            <span data-i18n="settings.display_name">Display name</span>
+            <input
+              id="displayName"
+              maxlength="40"
+              data-i18n-placeholder="settings.display_name_ph"
+              placeholder="e.g. Alex"
+            />
+          </label>
+          <label>
+            <span data-i18n="settings.bio">Bio</span>
+            <textarea
+              id="bio"
+              maxlength="280"
+              data-i18n-placeholder="settings.bio_ph"
+              placeholder="One line about what you track"
+            ></textarea>
+          </label>
+        </section>
 
-        <h2 style="margin-top: 8px" data-i18n="settings.public_section">Public page</h2>
-        <div class="toggle-row">
-          <div>
-            <strong data-i18n="settings.public_toggle">Make my page public</strong>
-            <span class="hint" data-i18n="settings.public_toggle_hint"
-              >When on, anyone can view your stats and recent sessions via the link below.</span
+        <section class="settings-section">
+          <h2 data-i18n="settings.public_section">Public page</h2>
+          <div class="toggle-row">
+            <div>
+              <strong data-i18n="settings.public_toggle">Make my page public</strong>
+              <span class="hint" data-i18n="settings.public_toggle_hint"
+                >When on, anyone can view your stats and recent sessions via the
+                link below.</span
+              >
+            </div>
+            <label
+              class="switch"
+              data-i18n-title="settings.public_toggle_title"
+              title="Public visibility"
+            >
+              <input id="isPublic" type="checkbox" />
+              <span></span>
+            </label>
+          </div>
+          <label>
+            <span data-i18n="settings.public_title_label">Public page title</span>
+            <input
+              id="publicTitle"
+              maxlength="80"
+              data-i18n-placeholder="settings.public_title_ph"
+              placeholder="e.g. Alex’s work timeline"
+            />
+          </label>
+          <p class="hint">
+            <span data-i18n="settings.public_url">Public URL:</span>
+            <a id="publicUrl" href="#" target="_blank" rel="noopener"></a>
+          </p>
+        </section>
+
+        <section class="settings-section">
+          <h2 data-i18n="settings.mcp_section">MCP access</h2>
+          <p class="hint">
+            <span data-i18n="settings.mcp_hint"
+              >For Cursor and other AI clients to read your timeline.
+              Endpoint:</span
+            >
+            <code id="mcpEndpoint"></code>
+          </p>
+          <p class="hint" id="mcpStatus">No long-lived token yet</p>
+          <pre id="mcpConfig" class="hint"></pre>
+          <div class="form-actions">
+            <button
+              id="rotateMcpBtn"
+              type="button"
+              class="soft"
+              data-i18n="settings.mcp_rotate"
+            >
+              Generate / rotate token
+            </button>
+            <button
+              id="revokeMcpBtn"
+              type="button"
+              class="ghost"
+              data-i18n="settings.mcp_revoke"
+            >
+              Revoke token
+            </button>
+            <button
+              id="copyMcpBtn"
+              type="button"
+              class="ghost"
+              data-i18n="settings.mcp_copy"
+            >
+              Copy config
+            </button>
+          </div>
+          <p id="mcpTokenOnce" class="ok hidden"></p>
+        </section>
+
+        <section class="settings-section settings-footer">
+          <p id="saveError" class="error hidden"></p>
+          <p id="saveOk" class="ok hidden" data-i18n="settings.saved">Saved</p>
+          <div class="form-actions">
+            <button type="submit" class="primary" data-i18n="settings.save">
+              Save settings
+            </button>
+            <a class="btn ghost" href="/app" data-i18n="settings.back"
+              >Back to dashboard</a
             >
           </div>
-          <label class="switch" data-i18n-title="settings.public_toggle_title" title="Public visibility">
-            <input id="isPublic" type="checkbox" />
-            <span></span>
-          </label>
-        </div>
-        <label>
-          <span data-i18n="settings.public_title_label">Public page title</span>
-          <input
-            id="publicTitle"
-            maxlength="80"
-            data-i18n-placeholder="settings.public_title_ph"
-            placeholder="e.g. Alex’s work timeline"
-          />
-        </label>
-        <p class="hint">
-          <span data-i18n="settings.public_url">Public URL:</span>
-          <a id="publicUrl" href="#" target="_blank" rel="noopener"></a>
-        </p>
-
-        <h2 style="margin-top: 8px" data-i18n="settings.mcp_section">MCP access</h2>
-        <p class="hint">
-          <span data-i18n="settings.mcp_hint"
-            >For Cursor and other AI clients to read your timeline. Endpoint:</span
-          >
-          <code id="mcpEndpoint"></code>
-        </p>
-        <p class="hint" id="mcpStatus">No long-lived token yet</p>
-        <pre id="mcpConfig" class="hint" style="white-space: pre-wrap; word-break: break-all; background: #10161f; padding: 12px; border-radius: 10px; border: 1px solid var(--line);"></pre>
-        <div class="form-actions">
-          <button id="rotateMcpBtn" type="button" class="soft" data-i18n="settings.mcp_rotate">Generate / rotate token</button>
-          <button id="revokeMcpBtn" type="button" class="ghost" data-i18n="settings.mcp_revoke">Revoke token</button>
-          <button id="copyMcpBtn" type="button" class="ghost" data-i18n="settings.mcp_copy">Copy config</button>
-        </div>
-        <p id="mcpTokenOnce" class="ok hidden"></p>
-
-        <p id="saveError" class="error hidden"></p>
-        <p id="saveOk" class="ok hidden" data-i18n="settings.saved">Saved</p>
-        <div class="form-actions">
-          <button type="submit" class="primary" data-i18n="settings.save">Save settings</button>
-          <a class="btn ghost" href="/app" data-i18n="settings.back">Back to dashboard</a>
-        </div>
+        </section>
       </form>
     </main>
 

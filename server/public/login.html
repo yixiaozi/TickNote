@@ -8,10 +8,10 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#3dd6c6" />
+    <meta name="theme-color" content="#090c10" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="app-shell">
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="/">
@@ -34,8 +34,14 @@
 
     <div class="auth-wrap">
       <form id="authForm" class="auth-card">
+        <div class="brand-inline">
+          <img src="/icon.png" alt="" width="28" height="28" />
+          <span>TickNote</span>
+        </div>
         <h1 id="authTitle" data-i18n="login.heading">Log in</h1>
-        <p class="sub" id="authSub" data-i18n="login.sub">Sign in to view sync stats and manage your public page.</p>
+        <p class="sub" id="authSub" data-i18n="login.sub">
+          Sign in to view sync stats and manage your public page.
+        </p>
         <label>
           <span data-i18n="login.username">Username</span>
           <input id="username" name="username" autocomplete="username" required />
@@ -53,8 +59,17 @@
         </label>
         <p id="authError" class="error hidden"></p>
         <div class="auth-actions">
-          <button id="loginBtn" type="submit" class="primary" data-i18n="login.submit">Log in</button>
-          <button id="registerBtn" type="button" class="ghost" data-i18n="login.register_btn">Create an account</button>
+          <button id="loginBtn" type="submit" class="primary" data-i18n="login.submit">
+            Log in
+          </button>
+          <button
+            id="registerBtn"
+            type="button"
+            class="ghost"
+            data-i18n="login.register_btn"
+          >
+            Create an account
+          </button>
         </div>
         <p class="hint">
           <span data-i18n="login.hint">Desktop sync URL:</span>

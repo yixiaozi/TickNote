@@ -8,10 +8,10 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#3dd6c6" />
+    <meta name="theme-color" content="#090c10" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="app-shell">
     <header class="site-header">
       <div class="site-header-inner">
         <a class="brand" href="/">
@@ -29,7 +29,9 @@
               <option value="zh">中文</option>
             </select>
           </label>
-          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">Log out</button>
+          <button id="logoutBtn" type="button" class="ghost" data-i18n="nav.logout">
+            Log out
+          </button>
         </nav>
       </div>
     </header>
@@ -41,12 +43,16 @@
           <p id="welcome" class="sub"></p>
         </div>
         <div class="topbar-actions">
-          <button id="refreshBtn" type="button" class="ghost" data-i18n="app.refresh">Refresh</button>
-          <a class="btn soft" href="/settings" data-i18n="app.account_settings">Account settings</a>
+          <button id="refreshBtn" type="button" class="ghost" data-i18n="app.refresh">
+            Refresh
+          </button>
+          <a class="btn soft" href="/settings" data-i18n="app.account_settings"
+            >Account settings</a
+          >
         </div>
       </header>
 
-      <section class="cards" id="summaryCards"></section>
+      <section class="cards meter-row" id="summaryCards"></section>
 
       <section class="panel">
         <h2 data-i18n="app.days_title">By day (recent)</h2>
