@@ -13,41 +13,48 @@
 
 不需要先买 Apple 开发者账号，也不需要 Mac 才能「看见」App。开发阶段用 **Expo Go**。
 
+> **重要（2025+）**：用 Expo Go 打开项目时，**手机里的 Expo Go** 和 **电脑上的 Expo CLI** 必须登录**同一个**免费 Expo 账号，否则会提示：
+> `You need to be signed in to Expo Go and Expo CLI to open your project.`
+
+### 0. 先注册并登录 Expo（两边都要）
+
+1. 打开 https://expo.dev/signup 免费注册。
+2. **iPhone**：打开 Expo Go → 右下角 Profile / 个人 → **Log In**（同一账号）。
+3. **电脑**：
+
+```bash
+cd mobile
+npx expo login
+```
+
+浏览器完成登录后，再 `npx expo whoami` 确认已登录。
+
 ### 1. 手机准备
 
-1. 打开 App Store，搜索并安装 **Expo Go**。
-2. iPhone 与电脑尽量连同一 Wi‑Fi（不行也没关系，用下面的 tunnel）。
+1. App Store 安装 **Expo Go**，并按上面登录。
+2. iPhone 与电脑尽量同一 Wi‑Fi（跨网用 tunnel）。
 
-### 2. 电脑准备
+### 2. 电脑启动
 
-需要 Node.js 18+（建议 20/22）。在仓库根目录：
+需要 Node.js 18+（建议 20/22）：
 
 ```bash
 cd mobile
 npm install
-npm start
+npx expo start
 ```
 
-终端里会出现二维码。也可以强制走公网隧道（跨网更稳）：
+跨网更稳：
 
 ```bash
 cd mobile
-npx expo start --tunnel
+npx expo start --tunnel ngrok
 ```
-
-首次使用 tunnel 可能会提示安装 `@expo/ngrok`，按提示安装即可。
 
 ### 3. 在 iPhone 上打开
 
-**同一 Wi‑Fi：**
-
-1. 打开系统自带「相机」，扫终端里的二维码。
-2. 点横幅 / 提示，用 **Expo Go** 打开项目。
-
-**不同网络 / 扫码失败：**
-
-1. 用 `npx expo start --tunnel`。
-2. 打开 Expo Go → 输入终端显示的连接地址，或再扫一次二维码。
+1. 用相机扫终端二维码，用已登录的 **Expo Go** 打开。
+2. 若失败：确认手机与电脑是**同一 Expo 账号**（`npx expo whoami`）。
 
 ### 4. 登录
 

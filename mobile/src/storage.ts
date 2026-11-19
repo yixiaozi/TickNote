@@ -1,13 +1,38 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import type { AuthState, Session } from "./types";
 import { DEFAULT_API_BASE } from "./api";
 
 const AUTH_KEY = "ticknote.auth";
 const SESSIONS_KEY = "ticknote.sessions";
 
+async function readSecure(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return AsyncStorage.getItem(key);
+  }
+  const SecureStore = await import("expo-secure-store");
+  return SecureStore.getItemAsync(key);
+}
+
+async function writeSecure(key: string, value: string | null): Promise<void> {
+  if (Platform.OS === "web") {
+    if (value === null) {
+      await AsyncStorage.removeItem(key);
+    } else {
+      await AsyncStorage.setItem(key, value);
+    }
+    return;
+  }
+  const SecureStore = await import("expo-secure-store");
+  if (value === null) {
+    await SecureStore.deleteItemAsync(key);
+  } else {
+    await SecureStore.setItemAsync(key, value);
+  }
+}
+
 export async function loadAuth(): Promise<AuthState | null> {
-  const raw = await SecureStore.getItemAsync(AUTH_KEY);
+  const raw = await readSecure(AUTH_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as AuthState;
@@ -23,10 +48,10 @@ export async function loadAuth(): Promise<AuthState | null> {
 
 export async function saveAuth(auth: AuthState | null): Promise<void> {
   if (!auth) {
-    await SecureStore.deleteItemAsync(AUTH_KEY);
+    await writeSecure(AUTH_KEY, null);
     return;
   }
-  await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(auth));
+  await writeSecure(AUTH_KEY, JSON.stringify(auth));
 }
 
 export async function loadLocalSessions(): Promise<Session[]> {
