@@ -9,17 +9,26 @@ function jsonResult(value) {
   return textResult(JSON.stringify(value, null, 2));
 }
 
+/** Sessions longer than this are outliers and excluded from average. */
+const AVG_SESSION_MAX_MINUTES = 10 * 60;
+
 function buildSummary(sessions) {
   const byDay = new Map();
   const byDevice = new Map();
   const byHour = Array.from({ length: 24 }, () => 0);
   let totalMinutes = 0;
   let totalSessions = 0;
+  let averageMinutesSum = 0;
+  let averageSessions = 0;
 
   for (const row of sessions) {
     const minutes = Number(row.minutes) || 0;
     totalMinutes += minutes;
     totalSessions += 1;
+    if (minutes > 0 && minutes <= AVG_SESSION_MAX_MINUTES) {
+      averageMinutesSum += minutes;
+      averageSessions += 1;
+    }
     const when = row.endedAt || row.startedAt || row.updatedAt;
     const date = when ? new Date(when) : null;
     if (date && !Number.isNaN(date.getTime())) {
@@ -35,8 +44,8 @@ function buildSummary(sessions) {
     totalSessions,
     totalMinutes: Math.round(totalMinutes * 10) / 10,
     averageMinutes:
-      totalSessions > 0
-        ? Math.round((totalMinutes / totalSessions) * 10) / 10
+      averageSessions > 0
+        ? Math.round((averageMinutesSum / averageSessions) * 10) / 10
         : 0,
     activeDays: byDay.size,
     days: [...byDay.entries()]
